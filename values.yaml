@@ -142,7 +142,6 @@ api:
 elasticsearch:
   enabled: true
   imageTag: "7.12.0"
-  clusterName: search-elasticsearch
   replicas: 1
 
   extraEnvs:
