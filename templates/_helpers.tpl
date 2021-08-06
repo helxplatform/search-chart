@@ -230,8 +230,8 @@ If release name contains chart name it will be used as a full name.
 Get the redis password secret.
 */}}
 {{- define "search.api.redis.secretName" -}}
-{{- if .Values.redis.existingSecret -}}
-{{- printf "%s" .Values.redis.existingSecret -}}
+{{- if .Values.redis.auth.existingSecret -}}
+{{- printf "%s" .Values.redis.auth.existingSecret -}}
 {{- else -}}
 {{- printf "%s" (include "search.api.redis.fullname" .) -}}
 {{- end -}}
@@ -241,8 +241,8 @@ Get the redis password secret.
 Get the password key to be retrieved from Redis(TM) secret.
 */}}
 {{- define "search.api.redis.secretPasswordKey" -}}
-{{- if and .Values.redis.existingSecret .Values.redis.existingSecretPasswordKey -}}
-{{- printf "%s" .Values.redis.existingSecretPasswordKey -}}
+{{- if and .Values.redis.auth.existingSecret .Values.redis.auth.existingSecretPasswordKey -}}
+{{- printf "%s" .Values.redis.auth.existingSecretPasswordKey -}}
 {{- else -}}
 {{- printf "redis-password" -}}
 {{- end -}}

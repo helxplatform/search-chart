@@ -27,7 +27,7 @@ dependencies:
     repository: "https://helm.elastic.co"
     condition: elasticsearch.enabled
   - name: redis
-    version: "13.0.0"
+    version: "14.8.6"
     repository: "https://charts.bitnami.com/bitnami"
     condition: redis.enabled
   - name: tranql

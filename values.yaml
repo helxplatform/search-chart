@@ -12,7 +12,8 @@ airflow:
       AIRFLOW__SCHEDULER__SCHEDULE_AFTER_TASK_EXECUTION: "FALSE"
       # Provide http://<URL to nginx >/<web-prefix>
       AIRFLOW__KUBERNETES__DELETE_WORKER_PODS: "TRUE"
-      AIRFLOW__WEBSERVER__BASE_URL: ""
+      # this could would work in any ingress url.
+      AIRFLOW__WEBSERVER__BASE_URL: "http://0.0.0.0/airflow"
     extraEnv:
       - name: ROGER_ELASTICSEARCH_HOST
         valueFrom:
@@ -168,22 +169,22 @@ redis:
   persistence:
     existingClaim: "redis-data"
   usePassword: true
-  clusterDomain: cluster.local
-  existingSecret: search-redis-secret
-  existingSecretPasswordKey: password
+  clusterDomain: mitchell-cluster
+  auth:
+    enabled: true
+    existingSecret: search-redis-secret
+    existingSecretPasswordKey: password
   image:
     repository: redislabs/redisgraph
     tag: 2.2.14
-  redis:
-    command: "redis-server"
-  cluster:
-    slaveCount: 1
   master:
     resources:
       requests:
-        memory: 8Gi
-        cpu: 200m
-    command: ""
+        memory: 30Mi
+        cpu: 10m
+      limits:
+        memory: 12Gi
+        cpu: 500m
     readinessProbe:
       enabled: false
     livenessProbe:
@@ -192,20 +193,49 @@ redis:
       - "--loadmodule /usr/lib/redis/modules/redisgraph.so"
     service:
       port: 6379
-  slave:
+  replica:
+    replicaCount: 1
     resources:
       requests:
-        memory: 8Gi
-        cpu: 200m
-    command: ""
+        memory: 30Mi
+        cpu: 300m
+      limits:
+        memory: 12Gi
+        cpu: 1000m
     readinessProbe:
       enabled: false
+    customReadinessProbe:
+      # Two reasons here, to use large number here
+      # 1. incase a restart of a pod happened, and the redis pod already had data there is some delay before
+      # data is loaded into memory. During that time if traffic is routed to the pod starting up, errors would surface.
+      # 2. HPA would consider calculation after readiness is met, for determining if an increase is needed. But if the pod
+      # is not ready yet its set aside of calculation (https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#algorithm-details)
+      # There is  an expected spike of cpu during initial loading of data. And would be beneficial to avoid
+      # HPA considering this a real spike further creating more pods, and they spike, more would be created.
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      # We expect the first "few" pings to redis to fail when its loading and we want to tolerate those.
+      # We could increase initial delay but that would make an empty db startup delayed. So by setting failure threshold
+      # to a very high number we can eventually detect it's readiness in about ((period + timeout) * failure) ( 10 + 1  mins max). Setting this to low with initial delay also low
+      # would cause restarts of the pod.
+      timeoutSeconds: 1
+      successThreshold: 1
+      failureThreshold: 60
+      exec:
+        command:
+          - /health/ping_readiness_local.sh
+          - "1"
     livenessProbe:
       enabled: false
     extraFlags:
       - "--loadmodule /usr/lib/redis/modules/redisgraph.so"
     service:
       port: 6379
+    autoscaling:
+      enabled: true
+      minReplicas: 1
+      maxReplicas: 10
+      targetCPU: 90
 
 secrets:
   elastic:
@@ -220,7 +250,7 @@ secrets:
 tranql:
   enabled: true
   existingRedis:
-    host: ""
+    host: "search-redis-replicas"
     port: 6379
     secret: search-redis-secret
     secretPasswordKey: password
@@ -228,6 +258,9 @@ tranql:
   extraEnv:
     - name: WEB_PATH_PREFIX
       value: "/tranql"
-
+  gunicorn:
+    workerCount: 4
+    # Some ops like /tranql/schema endpoint take quite a while in large graph.
+    workerTimeout: 600
   redis:
     enabled: false
