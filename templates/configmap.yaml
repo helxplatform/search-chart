@@ -33,5 +33,10 @@ metadata:
 data:
   data_directory: "/opt/airflow/share/data"
   input_sets: {{ .Values.config.input_sets }}
+  s3_access_key: {{ .Values.config.s3.access_key }}
+  s3_bucket: {{ .Values.config.s3.bucket }}
+  s3_host: {{ .Values.config.s3.host }}
+  s3_prefix: {{ .Values.config.s3.prefix }}
+  s3_secret_key: {{ .Values.config.s3.secret_key }}
   kgx_data_sets: {{ .Values.config.kgx_data_sets }}
   tranql_endpoint: "http://{{ template "search.tranql.fullname" . }}:{{ .Values.tranql.port }}{{ .Values.tranql.webPrefix }}/tranql/query?dynamic_id_resolution=true&asynchronous=false"

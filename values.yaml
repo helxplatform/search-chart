@@ -24,6 +24,31 @@ airflow:
           configMapKeyRef:
             name: search-data-config
             key: input_sets
+      - name: ROGER_DUG__INPUTS_S3_HOST
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: s3_host
+      - name: ROGER_DUG__INPUTS_S3_BUCKET
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: s3_bucket
+      - name: ROGER_DUG__INPUTS_S3_ACCESS__KEY
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: s3_access_key
+      - name: ROGER_DUG__INPUTS_S3_SECRET__KEY
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: s3_secret_key
+      - name: ROGER_DUG__INPUTS_S3_PREFIX
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: s3_prefix
       - name: ROGER_ELASTICSEARCH_HOST
         valueFrom:
           configMapKeyRef:
@@ -151,6 +176,13 @@ api:
 config:
   input_sets: "bdc-dbGaP,topmed"
   kgx_data_sets: "baseline-graph,sparc-kgx"
+  s3:
+    access_key: ""
+    bucket: ""
+    host: ""
+    prefix: ""
+    secret_key: ""
+
 
 elasticsearch:
   enabled: true
