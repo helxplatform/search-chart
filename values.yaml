@@ -139,11 +139,14 @@ airflow:
       revision: "HEAD"
       syncWait: 60
 
+  init_containers:
+    resources: {}
+
   logs:
     path: /opt/airflow/share/logs
     persistence:
       enabled: true
-      storageClass: "" ## WARNING: your StorageClass MUST SUPPORT `ReadWriteMany`
+      storageClass: "basic" ## WARNING: your StorageClass MUST SUPPORT `ReadWriteMany`
       accessMode: ReadWriteMany
       size: 1Gi
 
@@ -215,7 +218,7 @@ nboost:
   enabled: false
 
 persistence:
-  storageClass: ""
+  storageClass: "basic"
   pvcSize: 1Gi
 
 redis:

@@ -281,3 +281,83 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 {{- end }}
 {{- end }}
+
+{{/*
+Helpers for Airflow. These override the airflow chart's init container definitions,
+so that we can add resource requests/limits.
+*/}}
+
+{{/*
+Define an init-container which checks the DB status
+*/}}
+{{- define "airflow.init_container.check_db" }}
+- name: check-db
+  {{- include "airflow.image" . | indent 2 }}
+  resources:
+    {{- toYaml .Values.init_containers.resources | nindent 4 }}
+  envFrom:
+    {{- include "airflow.envFrom" . | indent 4 }}
+  env:
+    {{- include "airflow.env" . | indent 4 }}
+  command:
+    - "/usr/bin/dumb-init"
+    - "--"
+  args:
+    - "bash"
+    - "-c"
+    {{- if .Values.airflow.legacyCommands }}
+    - "exec timeout 60s airflow checkdb"
+    {{- else }}
+    - "exec timeout 60s airflow db check"
+    {{- end }}
+{{- end }}
+
+{{/*
+Define an init-container which waits for DB migrations
+*/}}
+{{- define "airflow.init_container.wait_for_db_migrations" }}
+- name: wait-for-db-migrations
+  {{- include "airflow.image" . | indent 2 }}
+  resources:
+    {{- toYaml .Values.init_containers.resources | nindent 4 }}
+  envFrom:
+    {{- include "airflow.envFrom" . | indent 4 }}
+  env:
+    {{- include "airflow.env" . | indent 4 }}
+  command:
+    - "/usr/bin/dumb-init"
+    - "--"
+  args:
+    - "bash"
+    - "-c"
+    {{- if .Values.airflow.legacyCommands }}
+    ## airflow 1.10 has no check-migrations command
+    - "exec sleep 5"
+    {{- else }}
+    - "exec airflow db check-migrations -t 60"
+    {{- end }}
+{{- end }}
+
+{{/*
+Define an init-container which installs a list of pip packages
+EXAMPLE USAGE: {{ include "airflow.init_container.install_pip_packages" (dict "Release" .Release "Values" .Values "extraPipPackages" $extraPipPackages) }}
+*/}}
+{{- define "airflow.init_container.install_pip_packages" }}
+- name: install-pip-packages
+  {{- include "airflow.image" . | indent 2 }}
+  resources:
+    {{- toYaml .Values.init_containers.resources | nindent 4 }}
+  command:
+    - "/usr/bin/dumb-init"
+    - "--"
+  args:
+    - "bash"
+    - "-c"
+    - |
+      pip install --user {{ range .extraPipPackages }}{{ . | quote }} {{ end }} && \
+      echo "copying '/home/airflow/.local/*' to '/opt/home-airflow-local'..." && \
+      cp -r /home/airflow/.local/* /opt/home-airflow-local
+  volumeMounts:
+    - name: home-airflow-local
+      mountPath: /opt/home-airflow-local
+{{- end }}
