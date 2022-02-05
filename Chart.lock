@@ -4,12 +4,12 @@ dependencies:
   version: 8.1.3
 - name: elasticsearch
   repository: https://helm.elastic.co
-  version: 7.12.0
+  version: 7.16.3
 - name: redis
   repository: https://charts.bitnami.com/bitnami
   version: 15.4.1
 - name: tranql
-  repository: https://helxplatform.github.io/helm-charts/
-  version: 0.2.0
-digest: sha256:323184f343f33cf0b5c7c77cc51ae287d30ef92a9dced5cf55b85ff023a33805
-generated: "2021-10-20T12:37:40.290646-04:00"
+  repository: http://localhost:8080/
+  version: 0.2.1
+digest: sha256:f426d06d2bcd123666d79f9395e58c2727be494a29a7d6f8d87c35ce1d9a53ec
+generated: "2022-02-04T15:30:10.114429-05:00"
