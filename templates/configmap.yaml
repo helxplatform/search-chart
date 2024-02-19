@@ -37,7 +37,10 @@ data:
   kgx_data_sets: {{ .Values.config.kgx_data_sets }}
   normalizer_url: {{ .Values.config.annotation.normalizer_url | quote }}
   synonymizer_url: {{ .Values.config.annotation.synonymizer_url | quote }}
-  annotator_url: {{ .Values.config.annotation.annotator_url | quote }}
+  annotator_type: {{ .Values.config.annotation.annotator_type | quote }}
+  annotator_monarch_url: {{ .Values.config.annotation.monarch.url | quote }}
+  annotator_sapbert_classification_url: {{ .Values.config.annotation.sapbert.classification_url | quote }}
+  annotator_sapbert_annotator_url: {{ .Values.config.annotation.sapbert.annotator_url | quote }}
   s3_access_key: {{ .Values.config.s3.access_key }}
   s3_bucket: {{ .Values.config.s3.bucket }}
   s3_host: {{ .Values.config.s3.host }}
@@ -49,6 +52,12 @@ data:
   {{- end }}
   node_to_queries_enabled: "{{ .Values.config.node_to_queries_enabled }}"
   element_mappings: "{{ .Values.config.element_mappings }}"
+  lakefs_enabled: {{ .Values.config.lakefs.enabled | quote }}
+  lakefs_access_key_id: {{ .Values.config.lakefs.access_key }}
+  lakefs_secret_access_key: {{ .Values.config.lakefs.secret_key }}
+  lakefs_host: {{ .Values.config.lakefs.host }}
+  lakefs_branch: {{ .Values.config.lakefs.branch }}
+  lakefs_repo: {{ .Values.config.lakefs.repo }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -59,3 +68,4 @@ data:
     from uvicorn.workers import UvicornWorker
     class SubPathWorker(UvicornWorker):
        CONFIG_KWARGS = {"root_path": "/search-api" }
+

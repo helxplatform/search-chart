@@ -19,7 +19,7 @@ airflow:
       pullPolicy: Always
     config:
       AIRFLOW__CORE__LOAD_EXAMPLES: "FALSE"
-      AIRFLOW__CORE__LOGGING_LEVEL: "INFO"
+      AIRFLOW__LOGGING_LEVEL: "INFO"
       AIRFLOW__SCHEDULER__SCHEDULE_AFTER_TASK_EXECUTION: "FALSE"
       # Provide http://<URL to nginx >/<web-prefix>
       AIRFLOW__KUBERNETES__DELETE_WORKER_PODS: "TRUE"
@@ -27,16 +27,61 @@ airflow:
     configSecretsName: airflow-config-secrets
     executor: KubernetesExecutor
     extraEnv:
+      - name: ROGER_LAKEFS__CONFIG_ENABLED
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: lakefs_enabled
+      - name: ROGER_LAKEFS__CONFIG_HOST
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: lakefs_host
+      - name: ROGER_LAKEFS__CONFIG_ACCESS__KEY__ID
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: lakefs_access_key_id      
+      - name: ROGER_LAKEFS__CONFIG_SECRET__ACCESS__KEY
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: lakefs_secret_access_key
+      - name: ROGER_LAKEFS__CONFIG_BRANCH
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: lakefs_branch
+      - name: ROGER_LAKEFS__CONFIG_REPO
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: lakefs_repo
       - name: ROGER_ANNOTATION_NORMALIZER
         valueFrom:
           configMapKeyRef:
             name: search-data-config
             key: normalizer_url
-      - name: ROGER_ANNOTATION_ANNOTATOR
+      - name: ROGER_ANNOTATION_ANNOTATOR__TYPE
         valueFrom:
           configMapKeyRef:
             name: search-data-config
-            key: annotator_url
+            key: annotator_type
+      - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_MONARCH_URL
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: annotator_monarch_url
+      - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_CLASSIFICATION__URL
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: annotator_sapbert_classification_url
+      - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_ANNOTATOR__URL
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: annotator_sapbert_annotator_url
       - name: ROGER_ANNOTATION_SYNONYM__SERVICE
         valueFrom:
           configMapKeyRef:
@@ -250,12 +295,17 @@ api:
     type: ClusterIP
 config:
   annotation:
+    annotator_type: "sapbert"
+    monarch: 
+      url: "https://api.monarchinitiative.org/api/nlp/annotate/entities?min_length=4&longest_only=false&include_abbreviation=false&include_acronym=false&include_numbers=false&content="
+    sapbert:
+      classification_url: "https://med-nemo.apps.renci.org/annotate/"
+      annotator_url: "https://babel-sapbert.apps.renci.org/annotate/"
     normalizer_url: https://nodenormalization-sri.renci.org/get_normalized_nodes?conflate=false&description=true&curie=
-    annotator_url: https://api.monarchinitiative.org/api/nlp/annotate/entities?min_length=4&longest_only=false&include_abbreviation=false&include_acronym=false&include_numbers=false&content=
     synonymizer_url: https://name-resolution-sri.renci.org/reverse_lookup
   input_sets: "bdc:v2.0,topmed:v2.0"
   data_source: "stars"
-  kgx_data_sets: "baseline-graph,cde-graph"
+  kgx_data_sets: "baseline-graph:v5.0,cde-graph:v5.0"
   node_to_queries_enabled: "false"
   # colon seperated mappings list by comma
   # eg : dbgap:Non-HEAL Studies,bacpac:HEAL Research Programs
@@ -265,6 +315,13 @@ config:
     bucket: ""
     access_key: ""
     secret_key: ""
+  lakefs:
+    enable: False
+    host: ""
+    access_key: ""
+    secret_key: ""
+    branch: ""
+    repo: ""
 elasticsearch:
   # default, maybe we ought to increase this as size increases
   # esJavaOpts: "-Xmx1g -Xms1g"
@@ -286,7 +343,7 @@ elasticsearch:
           key: username
     - name: LOG4J_FORMAT_MSG_NO_LOOKUPS
       value: "true"
-  # imageTag: "7.16.3"
+  imageTag: "8.5.2"
   maxUnavailable: 0
   replicas: 3
   resources:
