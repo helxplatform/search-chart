@@ -20,25 +20,32 @@ version: 5.1.0
 
 appVersion: "2.10.2"
 
+# For dynamic updates to dependencies, versions must specify a range. 
+# Apart from version constrains operators = != > < >= <= the following shorthand notations are supported:
+#  hyphen ranges for closed intervals, where 1.1 - 2.3.4 is equivalent to >= 1.1 <= 2.3.4.
+#  wildcards x, X and *, where 1.2.x is equivalent to >= 1.2.0 < 1.3.0.
+#  tilde ranges (patch version changes allowed), where ~1.2.3 is equivalent to >= 1.2.3 < 1.3.0.
+#  caret ranges (minor version changes allowed), where ^1.2.3 is equivalent to >= 1.2.3 < 2.0.0.
+
 dependencies:
   - name: airflow
-    version: "8.8.0"
+    version: "^8.6.1"
     condition: airflow.enabled
     repository: "https://airflow-helm.github.io/charts"
   - name: elasticsearch
-    version: "8.5.1"
+    version: "^8.5.1"
     repository: "https://helm.elastic.co"
     condition: elasticsearch.enabled
   - name: redis
-    version: "18.1.1"
+    version: "^18.1.1"
     repository: "https://charts.bitnami.com/bitnami"
     condition: redis.enabled
   - name: tranql
-    version: "0.4.2"
+    version: "^0.4.2"
     condition: tranql.enabled
     repository: "@helx-charts"
   - name: redis-insight
-    version: "0.1.0"
+    version: "^0.1.0"
     condition: redis-insight.enabled
     repository: "@helx-charts"
   - name: ui
