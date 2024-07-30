@@ -1,0 +1,92 @@
+name: check-helm-dependencies
+on:
+  schedule:
+  # # Every sunday at midnight UTC time
+    - cron: '0 0 * * 0'
+  push:
+
+jobs:
+  trigger-helm-charts:
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.head_ref }} 
+        # fetch-depth: 0 means, get all branches and commits
+        fetch-depth: 0
+
+    # - name: Install jq
+    #   run: sudo apt-get update && sudo apt-get install -y jq
+
+    - name: Helm Dependecy Update 
+      run: | 
+        helm repo add helx-charts https://helxplatform.github.io/helm-charts
+        helm repo update
+        helm dependency update
+
+    - name: Install helm-images plugin
+      run: | 
+        helm plugin install https://github.com/nikhilsbhat/helm-images
+
+    - name: Generate report of image versions 
+      run: |
+        # Check if ./charts directory exists
+        if [ ! -d "./charts" ]; then
+          echo "Error: Directory './charts' not found."
+          exit 1
+        fi
+
+        # Loop through files in ./charts directory
+        for i in ./charts/*
+        do
+          if [ -f "$i" ]; then
+            # Assuming helm images get expects a filename (not just the name without path)
+            helm images get "$i" --no-color >> /tmp/ip.txt 2> /dev/null
+          fi
+        done
+      continue-on-error: true
+
+    - name: Print out report 
+      run: |
+        cat /tmp/ip.txt | sort | uniq >> /tmp/image_report.txt
+        cat /tmp/image_report.txt
+
+    - name: Pull Images 
+      run: | 
+        for i in $(cat /tmp/image_report.txt)
+        do
+          docker pull $i
+        done
+    # https://aquasecurity.github.io/trivy/v0.38/getting-started/installation/
+    # We cannot ascertain the number of images in the sub-charts
+    # so here rather than using the trivy github-action
+    # we install the utility. 
+    - name: Install Trivy
+      run: |
+        sudo apt-get install wget apt-transport-https gnupg lsb-release
+        wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+        echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+        sudo apt-get update
+        sudo apt-get install trivy
+
+    - name: Run Trivy
+      run: |
+        mkdir /tmp/trivy/
+        filename=/tmp/image_report.txt
+        while IFS= read -r line; do 
+          echo "Running scan on $line"
+          trivy image \
+            --format sarif \
+            --output /tmp/trivy/$line_vuln_scan.sarif \
+            --scanners vuln \
+            --severity HIGH,CRITICAL \
+            $line
+        done < "$filename"
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        category: dependency-image-checks
+        sarif_file: '/tmp/trivy/'     
