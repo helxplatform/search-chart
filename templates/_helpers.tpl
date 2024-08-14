@@ -189,10 +189,27 @@ Environment vars for API pods
   {{- end }}
   {{- end }}
   {{- if .Values.api.deployment.extraEnv }}
-  {{- toYaml .Values.api.deployment.extraEnv | nindent 10 }}
+  {{- toYaml .Values.api.deployment.extraEnv | nindent 0 }}
   {{- end }}
 - name: ROOT_PATH
   value: /search-api
+  {{ if .Values.config.program_config }}
+- name: PROGRAM_DESCRIPTION
+  value: {{ .Values.config.program_config | toJson | quote }}
+  {{ end }}
+  {{ if .Values.config.consent_id_config }}
+- name: CONSENT_ID_PATH
+  value: "/home/dug/dug/consent-id.json"
+  {{ end }}
+  {{ if .Values.config.missing_programs }}
+- name: MISSING_PROGRAM_PATH
+  value: "/home/dug/dug/missing_programs.json"
+  {{ end }}
+  {{ if .Values.config.missing_studies }}
+- name: MISSING_STUDIES_PATH
+  value: "/home/dug/dug/missing_studies.json"
+  {{ end }}
+
 {{- end -}}
 
 {{/*
