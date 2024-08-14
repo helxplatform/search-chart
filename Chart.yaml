@@ -15,10 +15,10 @@ type: application
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
 # Versions are expected to follow Semantic Versioning (https://semver.org/)
-version: 5.1.0
+version: 5.2.0
+engine: gotpl
 
-
-appVersion: "2.10.2"
+appVersion: "v2.13.2"
 
 dependencies:
   - name: airflow
@@ -43,5 +43,5 @@ dependencies:
     repository: "@helx-charts"
   - name: ui
     condition: ui.enabled
-    version: "^1.3.0"
+    version: "^1.4.0"
     repository: "@helx-charts"

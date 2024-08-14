@@ -1,11 +1,17 @@
 fullnameOverride: ""
 nameOverride: ""
 airflow:
+  # -- Enable airflow deployment
+  # @section -- Airflow
   enabled: true
+  # @ignored
   pgbouncer:
     enabled: false
   airflow:
+    # @ignore
     dbMigrations:
+      # -- Disables dbMigration, useful if previous deployment is same airflow version.
+      # @section -- Airflow
       enabled: true
       ## if a post-install helm Job should be used (instead of a Deployment)
       ## - [WARNING] setting `true` will NOT work with the helm `--wait` flag,
@@ -13,19 +19,26 @@ airflow:
       ##   which will cause a deadlock, as other resources require db-migrations to become Ready
       ##
       runAsJob: true
+    # -- Airflow custom image, that contains dug and other libraries installed.
+    # @section -- Airflow
     image:
       repository: containers.renci.org/helxplatform/roger
       tag: "latest"
       pullPolicy: Always
+    # -- Airflow config
+    # @section -- Airflow
     config:
       AIRFLOW__CORE__LOAD_EXAMPLES: "FALSE"
       AIRFLOW__LOGGING_LEVEL: "INFO"
       AIRFLOW__SCHEDULER__SCHEDULE_AFTER_TASK_EXECUTION: "FALSE"
-      # Provide http://<URL to nginx >/<web-prefix>
       AIRFLOW__KUBERNETES__DELETE_WORKER_PODS: "TRUE"
       AIRFLOW__WEBSERVER__BASE_URL: ""
+    # @ignore
     configSecretsName: airflow-config-secrets
+    # @ignore
     executor: KubernetesExecutor
+    # -- Environment variables used by roger. For full option please refer to [Roger config.yaml](https://github.com/helxplatform/roger/blob/develop/dags/roger/config/config.yaml)
+    # @section -- Airflow
     extraEnv:
       - name: ROGER_LAKEFS__CONFIG_ENABLED
         valueFrom:
@@ -82,6 +95,41 @@ airflow:
           configMapKeyRef:
             name: search-data-config
             key: annotator_sapbert_annotator_url
+      - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_BAGEL_ENABLED
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: annotator_sapbert_bagel_enabled
+      - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_BAGEL_URL
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: annotator_sapbert_bagel_url
+      - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_BAGEL_PROMPT
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: annotator_sapbert_bagel_prompt
+      - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_BAGEL_LLM__ARGS_LLM__MODEL__NAME
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: annotator_sapbert_bagel_llm_model_name
+      - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_BAGEL_LLM__ARGS_ORGANIZATION
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: annotator_sapbert_bagel_llm_organization
+      - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_BAGEL_LLM__ARGS_ACCESS__KEY
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: annotator_sapbert_bagel_llm_access_key
+      - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_SCORE__THRESHOLD
+        valueFrom:
+          configMapKeyRef:
+            name: search-data-config
+            key: annotator_sapbert_score_threshold
       - name: ROGER_ANNOTATION_SYNONYM__SERVICE
         valueFrom:
           configMapKeyRef:
@@ -183,19 +231,23 @@ airflow:
           configMapKeyRef:
             name: search-data-config
             key: tranql_endpoint
-        value:
       - name: AIRFLOW__CORE__FERNET_KEY
         valueFrom:
           secretKeyRef:
             # Same as airflow.configSecretsName
             name: airflow-config-secrets
             key: fernet-key
+    # -- These volumes are mounted on all airflow pods , aswell as executor pods.
+    # @section -- Airflow
     extraVolumeMounts:
+      # --
       - name: airflow-data
         mountPath: /opt/airflow/share/data
       - name: es-cert
         mountPath: "/opt/certs/es.crt"
         subPath: "ca.crt"
+    # -- Volumes section for all airflow pods, including executor pods.
+    # @section -- Airflow
     extraVolumes:
       - name: airflow-data
         persistentVolumeClaim:
@@ -204,6 +256,9 @@ airflow:
         secret:
           secretName: elasticsearch-master-certs
           defaultMode: 0777
+    # -- Executor pod configuration
+    # @raw
+    # @section -- Airflow
     kubernetesPodTemplate:
       resources:
         limits:
@@ -212,8 +267,12 @@ airflow:
         requests:
           cpu: 2
           memory: 16G
+    # -- Update user table on deployments
+    # @section -- Airflow
     usersUpdate: true
-    # Resource config for all task runner pods.
+  # @yaml
+  # -- Defines the location of dags
+  # @section -- Airflow
   dags:
     gitSync:
       enabled: true
@@ -222,12 +281,15 @@ airflow:
       branch: "main"
       revision: "HEAD"
       syncWait: 60
+  # @ignore
   externalRedis:
     host: ""
     passwordSecret: search-redis-secret
     passwordSecretKey: password
+  # @ignore
   flower:
     enabled: false
+  # @ignore
   logs:
     path: /opt/airflow/share/logs
     persistence:
@@ -235,11 +297,15 @@ airflow:
       storageClass: "" ## WARNING: your StorageClass MUST SUPPORT `ReadWriteMany`
       accessMode: ReadWriteMany
       size: 5Gi
+  # @ignore
   redis:
     enabled: false
+  # @raw
+  # -- Airflow scheduler config
+  # @section -- Airflow
   scheduler:
     logCleanup:
-      enabled: false
+      enabled: true
     resources:
       limits:
         cpu: 2
@@ -247,6 +313,9 @@ airflow:
       requests:
         cpu: 2
         memory: 4G
+  # @raw
+  # -- Airflow webui config
+  # @section -- Airflow
   web:
     resources:
       limits:
@@ -257,22 +326,44 @@ airflow:
         cpu: 3
         ephemeral-storage: 1G
         memory: 4G
+  # @ignore
   workers:
     enabled: false
+  # @ignore
   triggerer:
     enabled: false
+
+# -- Airflow storage for executors , scheduler and web pods. This is a shared volume.
+# @section -- Airflow
+persistence:
+  storageClass: ""
+  pvcSize: 32Gi
+
+
+
 api:
+  # -- Number of relicas for Dug API server
+  # @section -- Dug API Server
   replicas: 4
+  # -- Connection Scheme to elastic search
+  # @section -- Dug API Server
   elasticScheme: "https"
-  # elasticAuthSecretName: "elasticsearch-master-credentials"
-  # certificateSecretName: "elasticsearch-master-certs"
+  # -- Default location to elastic search tls certificate
+  # @section -- Dug API Server
   certMountPath: "/usr/lib/ssl/certs/ca_elastic.crt"
+  # -- Container image
+  # @section -- Dug API Server
   image:
     repository: containers.renci.org/helxplatform/dug
     tag: ""
     pullPolicy: Always
+  # @ignore
   appName: webserver
+  # @ignore
   debug: false
+  # -- Deployment pod Configuration
+  # @raw
+  # @section -- Dug API Server
   deployment:
     apiPort: 5551
     apiWorkers: 8
@@ -287,44 +378,118 @@ api:
       requests:
         cpu: 500m
         memory: 1Gi
+
+
   service:
+    # -- This should match release name in this example the helm release name was `search`
+    # @section -- Dug API Server
     name: search-api
+    # -- Search service annotation
+    # @section -- Dug API Server
     annotations: {}
+    # -- API port on deployment
+    # @section -- Dug API Server
     apiPort: "5551"
+    # -- Service port
+    # @section -- Dug API Server
     port: "5551"
+    # -- Service type
+    # @section -- Dug API Server
     type: ClusterIP
+
+
+
+# @section -- Application Config
 config:
+  # @TODO find permanent solution for study level data.
+  # @ignore
+  program_config: {}
+  # @ignore
+  consent_id_config: {}
+  # @ignore
+  missing_studies: {}
+  # @ignore
+  missing_programs: {}
+
   annotation:
+    # -- Annotator type to use , options are `sapbert` or `monarch`
+    # @section -- Application Config
     annotator_type: "sapbert"
-    monarch: 
+    # -- Monarch annotator config
+    # @raw
+    # @section -- Application Config
+    monarch:
       url: "https://api.monarchinitiative.org/api/nlp/annotate/entities?min_length=4&longest_only=false&include_abbreviation=false&include_acronym=false&include_numbers=false&content="
+    # -- Sapbert annotator config
+    # @raw
+    # @section -- Application Config
     sapbert:
       classification_url: "https://med-nemo.apps.renci.org/annotate/"
-      annotator_url: "https://babel-sapbert.apps.renci.org/annotate/"
+      annotator_url: "https://sap-qdrant.apps.renci.org/annotate/"
+      score_threshold: 0.8
+      bagel:
+        enabled: false
+        url: "https://bagel.apps.renci.org/group_synonyms_openai"
+        prompt: "bagel/ask_classes"
+        llm_args:
+          llm_model_name: "gpt-4o-2024-05-13"
+          organization: ""
+          access_key: ""
+    # -- Node normalization url to use during annotation
+    # @section -- Application Config
     normalizer_url: https://nodenormalization-sri.renci.org/get_normalized_nodes?conflate=false&description=true&curie=
+    # -- Name resolution url to use to find synonyms
+    # @section -- Application Config
     synonymizer_url: https://name-resolution-sri.renci.org/reverse_lookup
+
+  # -- Input dataset to include during ingestion. These refer to repo names on lakefs. With version (branch) tags.
+  # @section -- Application Config
   input_sets: "bdc:v2.0,topmed:v2.0"
+  # Depricated
+  # @ignore
   data_source: "stars"
+  # -- Knowledge graph input datasets to ingest for the dug Knowledge graph. These are lakefs repo names with version(branches) as tags.
+  # @section -- Application Config
   kgx_data_sets: "baseline-graph:v5.0,cde-graph:v5.0"
+  # -- Enables CDE extraction from Knowledge graph.
+  # @section -- Application Config
   node_to_queries_enabled: "false"
-  # colon seperated mappings list by comma
-  # eg : dbgap:Non-HEAL Studies,bacpac:HEAL Research Programs
+  # -- colon seperated mappings list by comma, eg : dbgap:Non-HEAL Studies,bacpac:HEAL Research Programs, used to map parser outputs to other values.
+  # @section -- Application Config
   element_mappings: ""
+  # Deprecated
+  # @ignore
   s3:
     host: ""
     bucket: ""
     access_key: ""
     secret_key: ""
+
   lakefs:
+    # -- Enables lakefs usage for input and output on data ingest.
+    # @section -- Application Config
     enable: False
+    # -- Lakefs host address
+    # @section -- Application Config
     host: ""
+    # -- Lakefs access key
+    # @section -- Application Config
     access_key: ""
+    # -- Lakefs secret key
+    # @section -- Application Config
     secret_key: ""
+    # -- Branch to write output files to.
+    # @section -- Application Config
     branch: ""
+    # -- Lakefs repo to write outputs to
+    # @section -- Application Config
     repo: ""
+
+# --  Elastic search for more information checkout full elasticsearch chart options at [https://github.com/elastic/helm-charts/tree/v8.5.1](https://github.com/elastic/helm-charts/tree/v8.5.1)
+# @raw
+# @section -- Elasticsearch
 elasticsearch:
-  # default, maybe we ought to increase this as size increases
-  # esJavaOpts: "-Xmx1g -Xms1g"
+
   enabled: true
   esJavaOpts: "-Xmx6g -Xms6g -Dlog4j2.disable.jmx=true -Dlog4j2.formatMsgNoLookups=true"
   clusterHealthCheckParams: "wait_for_status=green&timeout=1s"
@@ -357,7 +522,9 @@ elasticsearch:
       ephemeral-storage: 256Mi
   sysctlInitContainer:
     enabled: false
-
+# -- Values to enable ingress
+# @raw
+# @section -- Ingress
 ingress:
   pathType: Prefix
   className: ""
@@ -366,7 +533,7 @@ ingress:
     enabled: false
     username: ""
     password: ""
-  annotations: 
+  annotations:
     nginx.ingress.kubernetes.io/enable-cors: "true"
     nginx.ingress.kubernetes.io/cors-allow-origin: "*"
     nginx.ingress.kubernetes.io/cors-allow-methods: "POST, OPTIONS"
@@ -397,9 +564,9 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
-persistence:
-  storageClass: ""
-  pvcSize: 32Gi
+# -- Redis (Redis Graph)  for more information checkout full redis  chart options at [https://github.com/bitnami/charts/tree/redis/18.1.1/bitnami/redis](https://github.com/bitnami/charts/tree/redis/18.1.1/bitnami/redis)
+# @raw
+# @section -- Redis
 redis:
   auth:
     existingSecret: search-redis-secret
@@ -473,6 +640,17 @@ redis:
       successThreshold: 5
     livenessProbe:
       enabled: false
+
+# @ignore
+redis-insight:
+  # -- Enable/Disable Redis UI
+  enabled: false
+  # -- Url should be same as public ingress url
+  rootUrl: ""
+
+
+# -- Secrets for passwords
+# @section -- Elastic / Redis secrets
 secrets:
   elastic:
     name: search-elastic-secret
@@ -482,6 +660,10 @@ secrets:
   redis:
     name: search-redis-secret
     passwordKey: password
+
+# -- Tranql API configuration. Please refer to [https://github.com/helxplatform/tranql-chart/tree/main](https://github.com/helxplatform/tranql-chart/tree/main) for more details.
+# @raw
+# @section -- Tranql
 tranql:
   enabled: true
   existingRedis:
@@ -494,7 +676,6 @@ tranql:
     - name: WEB_PATH_PREFIX
       value: "/tranql"
   gunicorn:
-    # -- single worker for now to avoid recomputing of schema per worker
     workerCount: 1
     workerTimeout: 1600
   resources:
@@ -506,16 +687,18 @@ tranql:
       memory: 2G
   redis:
     enabled: false
-redis-insight:
-  # -- Enable/Disable Redis UI
-  enabled: false
-  # -- Url should be same as public ingress url
-  rootUrl: ""
 
+# -- Dug search UI configuration please refer to [https://github.com/helxplatform/ui-chart/tree/master](https://github.com/helxplatform/ui-chart/tree/master) for more options
+# @raw
+# @section -- Dug (Helx) UI
 ui:
   enabled: False
   config:
     brand_name: ""
+    brand_description:
+      html: "<html></html>"
+    analytics:
+      enabled: false
     search:
       enabled: "true"
       ## Escaped search endpoint address eg: https:\/\/example.com\/search-api
@@ -527,3 +710,31 @@ ui:
       # disable workspaces
       enabled: "false"
     hidden_result_tabs: "cdes"
+    support:
+      help_portal_url: ""
+      user_guide_url: ""
+      faqs_url: ""
+    meta:
+      title: "Dug semantic search"
+      description: "Dug semantic search"
+
+
+# -- Configuration option for Dug chatbot UI
+# @raw
+# @section -- Koios Chat UI
+chat:
+  enabled: false
+  replicas: 1
+  root_path: /chat
+  image:
+    repository: containers.renci.org/helxplatform/dug-chatbot
+    tag: v0.0.2
+  resources:
+    limits:
+      cpu: 1
+      memory: 1Gi
+  config:
+    api_url: http://koios-llama-koios-chart.ner/
+  apiPort: 8080
+  service:
+    type: ClusterIP
