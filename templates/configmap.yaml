@@ -41,6 +41,13 @@ data:
   annotator_monarch_url: {{ .Values.config.annotation.monarch.url | quote }}
   annotator_sapbert_classification_url: {{ .Values.config.annotation.sapbert.classification_url | quote }}
   annotator_sapbert_annotator_url: {{ .Values.config.annotation.sapbert.annotator_url | quote }}
+  annotator_sapbert_bagel_enabled: {{ .Values.config.annotation.sapbert.bagel.enabled | quote }}
+  annotator_sapbert_bagel_url: {{ .Values.config.annotation.sapbert.bagel.url | quote }}
+  annotator_sapbert_bagel_prompt: {{ .Values.config.annotation.sapbert.bagel.prompt | quote }}
+  annotator_sapbert_bagel_llm_model_name: {{ .Values.config.annotation.sapbert.bagel.llm_args.llm_model_name | quote }}
+  annotator_sapbert_bagel_llm_organization: {{ .Values.config.annotation.sapbert.bagel.llm_args.organization | quote }}
+  annotator_sapbert_bagel_llm_access_key: {{ .Values.config.annotation.sapbert.bagel.llm_args.access_key | quote }}
+  annotator_sapbert_score_threshold: {{ .Values.config.annotation.sapbert.score_threshold | quote }}
   s3_access_key: {{ .Values.config.s3.access_key }}
   s3_bucket: {{ .Values.config.s3.bucket }}
   s3_host: {{ .Values.config.s3.host }}
@@ -68,4 +75,44 @@ data:
     from uvicorn.workers import UvicornWorker
     class SubPathWorker(UvicornWorker):
        CONFIG_KWARGS = {"root_path": "/search-api" }
+{{ if .Values.config.program_config }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "search.api.web.fullname" . }}-program-names
+data:
+  program_names.json: |-
+    {{ .Values.config.program_config | toJson }}
+{{ end }}
 
+{{ if .Values.config.consent_id_config }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "search.api.web.fullname" . }}-consent-id-config
+data:
+  consent_id.json: |-
+    {{ .Values.config.consent_id_config | toJson }}
+{{ end }}
+---
+{{ if .Values.config.missing_studies }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "search.api.web.fullname" . }}-missing-studies-config
+data:
+  missing_studies.json: |-
+    {{ .Values.config.missing_studies | toJson }}
+{{ end }}
+---
+{{ if .Values.config.missing_programs }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "search.api.web.fullname" . }}-missing-programs-config
+data:
+  missing_programs.json: |-
+    {{ .Values.config.missing_programs | toJson }}
+{{ end }}

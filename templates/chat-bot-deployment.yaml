@@ -1,0 +1,41 @@
+{{ if .Values.chat.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "search.api.web.fullname" . }}-chat
+  labels:
+    app: {{ .Values.api.appName}}
+spec:
+  replicas: {{ .Values.chat.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.api.appName }}-chat
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.api.appName}}-chat
+    spec:
+      imagePullSecrets:
+        {{- toYaml .Values.api.deployment.imagePullSecrets | nindent 8 }}
+      containers:
+      - image: {{ .Values.chat.image.repository }}:{{ .Values.chat.image.tag }}
+        imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+        name: {{ include "search.api.web.fullname" . }}-container
+        env:
+          - name: API_URL
+            value: {{ .Values.chat.config.api_url }}
+          - name: SCRIPT_NAME
+            value: {{ .Values.chat.root_path }}
+        ports:
+          - containerPort: {{ .Values.chat.apiPort }}
+        command: [
+            "gunicorn",
+            "app:app",
+            "-b",
+            "0.0.0.0:{{ .Values.chat.apiPort }}"
+        ]
+        tty: true
+        stdin: true
+        resources:
+          {{- toYaml .Values.chat.resources | nindent 10 }}
+{{ end }}

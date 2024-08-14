@@ -18,3 +18,26 @@ spec:
   selector:
     app: {{ .Values.api.appName }}
   type: {{ .Values.api.service.type }}
+---
+{{ if .Values.chat.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "search.api.web.fullname" . }}-chat
+  {{- if .Values.api.service.annotations }}
+  annotations:
+    {{- toYaml .Values.api.service.annotations | nindent 4}}
+  {{- end }}
+  labels:
+    app: {{ .Values.api.appName }}-chat
+    {{- include "search.api.labels" . | nindent 4 }}
+spec:
+  ports:
+    - name: chat-port
+      protocol: TCP
+      port: {{ .Values.chat.apiPort }}
+      targetPort: {{ .Values.chat.apiPort }}
+  selector:
+    app: {{ .Values.api.appName }}-chat
+  type: {{ .Values.chat.service.type }}
+{{ end }}
