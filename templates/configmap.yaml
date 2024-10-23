@@ -75,7 +75,7 @@ data:
     from uvicorn.workers import UvicornWorker
     class SubPathWorker(UvicornWorker):
        CONFIG_KWARGS = {"root_path": "/search-api" }
-{{ if .Values.config.program_config }}
+
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -84,9 +84,6 @@ metadata:
 data:
   program_names.json: |-
     {{ .Values.config.program_config | toJson }}
-{{ end }}
-
-{{ if .Values.config.consent_id_config }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -95,9 +92,7 @@ metadata:
 data:
   consent_id.json: |-
     {{ .Values.config.consent_id_config | toJson }}
-{{ end }}
 ---
-{{ if .Values.config.missing_studies }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -105,9 +100,7 @@ metadata:
 data:
   missing_studies.json: |-
     {{ .Values.config.missing_studies | toJson }}
-{{ end }}
 ---
-{{ if .Values.config.missing_programs }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -115,4 +108,3 @@ metadata:
 data:
   missing_programs.json: |-
     {{ .Values.config.missing_programs | toJson }}
-{{ end }}

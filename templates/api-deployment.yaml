@@ -40,26 +40,22 @@ spec:
         resources:
           {{- toYaml .Values.api.deployment.resources | nindent 10 }}
         volumeMounts:
-          {{ if .Values.config.program_config }}
+
           - name: program-config
             mountPath: "/home/dug/dug/program-names.json"
             subPath: "program_names.json"
-          {{ end }}
-          {{ if .Values.config.consent_id_config }}
+
           - name: consent-id-config
             mountPath: "/home/dug/dug/consent-id.json"
             subPath: "consent_id.json"
-          {{ end }}
-          {{ if .Values.config.missing_studies }}
+
           - name: missing-studies-config
             mountPath: "/home/dug/dug/missing_studies.json"
             subPath: "missing_studies.json"
-          {{ end }}
-          {{ if .Values.config.missing_programs }}
           - name: missing-programs-config
             mountPath: "/home/dug/dug/missing_programs.json"
             subPath: "missing_programs.json"
-          {{ end }}
+
           - name: gunicorn-config
             mountPath: "/home/dug/dug/uvicorn_custom.py"
             subPath: "uvicorn_custom.py"
@@ -71,30 +67,22 @@ spec:
         configMap:
           name: {{ include "search.api.web.fullname" . }}-gunicorn-conf
           defaultMode: 0777
-      {{ if .Values.config.program_config }}
       - name: program-config
         configMap:
           name: {{ include "search.api.web.fullname" . }}-program-names
           defaultMode: 0777
-      {{ end }}
-      {{ if .Values.config.consent_id_config }}
       - name: consent-id-config
         configMap:
           name: {{ include "search.api.web.fullname" . }}-consent-id-config
           defaultMode: 0777
-      {{ end }}
-      {{ if .Values.config.missing_programs }}
       - name: missing-programs-config
         configMap:
           name: {{ include "search.api.web.fullname" . }}-missing-programs-config
           defaultMode: 0777
-      {{ end }}
-      {{ if .Values.config.missing_studies }}
       - name: missing-studies-config
         configMap:
           name: {{ include "search.api.web.fullname" . }}-missing-studies-config
           defaultMode: 0777
-      {{ end }}
       - name: elastic-ca
         secret:
           secretName: {{ include "search.api.elasticsearch.uname" . }}-certs

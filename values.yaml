@@ -305,7 +305,7 @@ airflow:
   # @section -- Airflow
   scheduler:
     logCleanup:
-      enabled: true
+      enabled: false
     resources:
       limits:
         cpu: 2
@@ -407,9 +407,9 @@ config:
   # @ignore
   consent_id_config: {}
   # @ignore
-  missing_studies: {}
+  missing_studies: []
   # @ignore
-  missing_programs: {}
+  missing_programs: []
 
   annotation:
     # -- Annotator type to use , options are `sapbert` or `monarch`
@@ -568,6 +568,11 @@ ingress:
 # @raw
 # @section -- Redis
 redis:
+  commonConfiguration: |-
+    # Enable AOF https://redis.io/topics/persistence#append-only-file
+    appendonly no
+    # Disable RDB persistence, AOF persistence already enabled.
+    save 300 100000
   auth:
     existingSecret: search-redis-secret
     existingSecretPasswordKey: password
@@ -575,7 +580,7 @@ redis:
   enabled: true
   image:
     repository: falkordb/falkordb
-    tag: edge
+    tag: v4.0.10
   usePassword: true
   master:
     persistence:
@@ -609,7 +614,7 @@ redis:
       - "16"
   replica:
     autoscaling:
-      enabled: true
+      enabled: false
       minReplicas: 1
       maxReplicas: 1
       targetCPU: 100
@@ -735,6 +740,23 @@ chat:
       memory: 1Gi
   config:
     api_url: http://koios-llama-koios-chart.ner/
+  apiPort: 8080
+  service:
+    type: ClusterIP
+
+chat_2:
+  enabled: false
+  replicas: 1
+  root_path: /chat-kg
+  image:
+    repository: containers.renci.org/helxplatform/dug-chatbot
+    tag: v0.0.2
+  resources:
+    limits:
+      cpu: 1
+      memory: 1Gi
+  config:
+    api_url: http://koios-kg-chat-koios-chart.ner/
   apiPort: 8080
   service:
     type: ClusterIP

@@ -39,3 +39,45 @@ spec:
         resources:
           {{- toYaml .Values.chat.resources | nindent 10 }}
 {{ end }}
+---
+{{ if .Values.chat_2.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "search.api.web.fullname" . }}-chat-2
+  labels:
+    app: {{ .Values.api.appName}}
+spec:
+  replicas: {{ .Values.chat.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.api.appName }}-chat-2
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.api.appName}}-chat-2
+    spec:
+      imagePullSecrets:
+        {{- toYaml .Values.api.deployment.imagePullSecrets | nindent 8 }}
+      containers:
+      - image: {{ .Values.chat_2.image.repository }}:{{ .Values.chat_2.image.tag }}
+        imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+        name: {{ include "search.api.web.fullname" . }}-container
+        env:
+          - name: API_URL
+            value: {{ .Values.chat_2.config.api_url }}
+          - name: SCRIPT_NAME
+            value: {{ .Values.chat_2.root_path }}
+        ports:
+          - containerPort: {{ .Values.chat.apiPort }}
+        command: [
+            "gunicorn",
+            "app:app",
+            "-b",
+            "0.0.0.0:{{ .Values.chat.apiPort }}"
+        ]
+        tty: true
+        stdin: true
+        resources:
+          {{- toYaml .Values.chat_2.resources | nindent 10 }}
+{{ end }}
