@@ -50,5 +50,5 @@ dependencies:
     repository: "@helx-charts"
   - name: ui
     condition: ui.enabled
-    version: "^1.4.0"
+    version: "^1.6.0"
     repository: "@helx-charts"
