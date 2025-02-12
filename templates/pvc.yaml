@@ -7,10 +7,16 @@ metadata:
   annotations:
     "helm.sh/resource-policy": keep
 spec:
-  storageClassName: {{ .Values.persistence.storageClass }}
+  {{- if .Values.persistence }}
+  storageClassName: {{ .Values.persistence.storageClass | default "default" }}
+  {{- end }}
   accessModes:
     - ReadWriteMany
   resources:
     requests:
-      storage: {{ .Values.persistence.pvcSize }}
+      {{- if .Values.persistence }}
+      storage: {{ .Values.persistence.pvcSize | default "20G" }}
+      {{- else }}
+      storage: "20G"
+      {{- end }}
 {{ end }}
