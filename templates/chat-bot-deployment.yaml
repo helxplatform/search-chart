@@ -26,16 +26,9 @@ spec:
             value: {{ .Values.chat.config.api_url }}
           - name: SCRIPT_NAME
             value: {{ .Values.chat.root_path }}
-        ports:
-          - containerPort: {{ .Values.chat.apiPort }}
-        command: [
-            "gunicorn",
-            "app:app",
-            "-b",
-            "0.0.0.0:{{ .Values.chat.apiPort }}"
-        ]
-        tty: true
-        stdin: true
+          - name: PUBLIC_URL
+            value: {{ .Values.chat.root_path }}
+
         resources:
           {{- toYaml .Values.chat.resources | nindent 10 }}
 {{ end }}
@@ -68,16 +61,11 @@ spec:
             value: {{ .Values.chat_2.config.api_url }}
           - name: SCRIPT_NAME
             value: {{ .Values.chat_2.root_path }}
+          - name: PUBLIC_URL
+            value: {{ .Values.chat_2.root_path }}
         ports:
           - containerPort: {{ .Values.chat.apiPort }}
-        command: [
-            "gunicorn",
-            "app:app",
-            "-b",
-            "0.0.0.0:{{ .Values.chat.apiPort }}"
-        ]
-        tty: true
-        stdin: true
+
         resources:
           {{- toYaml .Values.chat_2.resources | nindent 10 }}
 {{ end }}

@@ -749,8 +749,8 @@ chat_2:
   replicas: 1
   root_path: /chat-kg
   image:
-    repository: containers.renci.org/helxplatform/dug-chatbot
-    tag: v0.0.2
+    repository: containers.renci.org/helxplatform/koios-ui
+    tag: v0.0.1
   resources:
     limits:
       cpu: 1
