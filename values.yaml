@@ -1,6 +1,20 @@
 fullnameOverride: ""
 nameOverride: ""
 airflow:
+  defaultInitContainers:
+    loadDAGsPlugins:
+      resources:
+        requests:
+          cpu: 500m
+          memory: 1Gi
+        limits:
+          memory: 1Gi
+          cpu: 500m
+  postgresql:
+    primary:
+      resources:
+        limits:
+          ephemeral-storage: 256Mi
   enabled: true
 
 #  auth:
@@ -88,9 +102,11 @@ airflow:
       limits:
         cpu: 2
         memory: 4G
+        ephemeral-storage: 256Mi
       requests:
         cpu: 2
         memory: 4G
+        ephemeral-storage: 256Mi
   triggerer:
     enabled: false
   web:
@@ -99,20 +115,29 @@ airflow:
     resources:
       limits:
         cpu: 3
-        ephemeral-storage: 1G
+        ephemeral-storage: 256Mi
         memory: 4G
       requests:
         cpu: 3
-        ephemeral-storage: 1G
+        ephemeral-storage: 256Mi
         memory: 4G
-  workers:
-    enabled: false
-
+  worker:
+    resources:
+      limits:
+        cpu: 1
+        ephemeral-storage: 200Mi
+        memory: 1Gi
+      requests:
+        cpu: 500m
+        ephemeral-storage: 200Mi
+        memory: 1Gi
 #  Environment variables used by roger. For full option please refer
 #  to [Roger config.yaml](https://github.com/helxplatform/roger/blob/develop/dags/roger/config/config.yaml)
   extraEnvVars:
     - name: AIRFLOW__CORE__KUBERNETES_DELETE_WORKER_PODS
-      value: "TRUE"
+      value: "FALSE"
+    - name: "AIRFLOW__LOGGING__LOGGING_LEVEL"
+      value: "DEBUG"
     - name: PYTHONPATH
       value: "/opt/bitnami/airflow/dags/git_github-com-helxplatform-roger-git"
     - name: ROGER_LAKEFS__CONFIG_ENABLED
@@ -573,8 +598,9 @@ redis:
       - "OMP_THREAD_COUNT"
       - "16"
   replica:
+    replicaCount: 0
     autoscaling:
-      enabled: true
+      enabled: false
       minReplicas: 1
       maxReplicas: 1
       targetCPU: 100
