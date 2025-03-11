@@ -1,6 +1,7 @@
 fullnameOverride: ""
 nameOverride: ""
 airflow:
+
   defaultInitContainers:
     loadDAGsPlugins:
       resources:
@@ -498,7 +499,7 @@ elasticsearch:
           key: username
     - name: LOG4J_FORMAT_MSG_NO_LOOKUPS
       value: "true"
-  imageTag: "8.5.2"
+  imageTag: "8.17.3"
   maxUnavailable: 0
   replicas: 3
   resources:
