@@ -1,7 +1,6 @@
 fullnameOverride: ""
 nameOverride: ""
 airflow:
-
   defaultInitContainers:
     loadDAGsPlugins:
       resources:
@@ -11,6 +10,15 @@ airflow:
         limits:
           memory: 1Gi
           cpu: 500m
+    prepareConfig:
+      resources:
+        requests:
+          cpu: 500m
+          memory: 1Gi
+        limits:
+          memory: 1Gi
+          cpu: 500m
+
   postgresql:
     primary:
       resources:
@@ -135,8 +143,8 @@ airflow:
 #  Environment variables used by roger. For full option please refer
 #  to [Roger config.yaml](https://github.com/helxplatform/roger/blob/develop/dags/roger/config/config.yaml)
   extraEnvVars:
-    - name: AIRFLOW__CORE__KUBERNETES_DELETE_WORKER_PODS
-      value: "FALSE"
+    - name: AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS
+      value: "TRUE"
     - name: "AIRFLOW__LOGGING__LOGGING_LEVEL"
       value: "DEBUG"
     - name: PYTHONPATH
