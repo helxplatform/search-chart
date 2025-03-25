@@ -18,6 +18,12 @@ airflow:
         limits:
           memory: 1Gi
           cpu: 500m
+#  setupDBJob:
+#    resources:
+#      limits:
+#        ephemeral-storage: 256Mi
+#        memory: 1Gi
+#        cpu: 500m
 
   postgresql:
     primary:
@@ -135,7 +141,7 @@ airflow:
       limits:
         cpu: 1
         ephemeral-storage: 200Mi
-        memory: 1Gi
+        memory: 15Gi
       requests:
         cpu: 500m
         ephemeral-storage: 200Mi
@@ -144,7 +150,7 @@ airflow:
 #  to [Roger config.yaml](https://github.com/helxplatform/roger/blob/develop/dags/roger/config/config.yaml)
   extraEnvVars:
     - name: AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS
-      value: "TRUE"
+      value: "FALSE"
     - name: "AIRFLOW__LOGGING__LOGGING_LEVEL"
       value: "DEBUG"
     - name: PYTHONPATH
