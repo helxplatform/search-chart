@@ -1,6 +1,10 @@
 fullnameOverride: ""
 nameOverride: ""
+
+# @section -- Airflow
 airflow:
+  # -- Default init containers resource overrides.
+  # @section -- Airflow
   defaultInitContainers:
     loadDAGsPlugins:
       resources:
@@ -24,7 +28,8 @@ airflow:
 #        ephemeral-storage: 256Mi
 #        memory: 1Gi
 #        cpu: 500m
-
+  # -- Airflow postgres resource override
+  # @section -- Airflow
   postgresql:
     primary:
       resources:
@@ -36,7 +41,8 @@ airflow:
 #    existingSecret: airflow-config-secrets
 #   AIRFLOW__LOGGING__LOGGING_LEVEL: "INFO"
 #   AIRFLOW__SCHEDULER__SCHEDULE_AFTER_TASK_EXECUTION: "FALSE"
-
+  # -- Workflow dag definitions, github location and branch
+  # @section -- Airflow
   dags:
     enabled: true
     repositories:
@@ -44,7 +50,8 @@ airflow:
         branch: "main"
         path: "/dags"
     syncWait: 60
-
+  # -- Executor type
+  # @section -- Airflow
   executor: KubernetesExecutor
 
   # -- These volumes are mounted on all airflow pods , aswell as executor pods.
@@ -65,18 +72,20 @@ airflow:
       secret:
         secretName: elasticsearch-master-certs
         defaultMode: 0777
-
+  # @ignore
   flower:
     enabled: false
-
+  # @ignore
   global:
     security:
       allowInsecureImages: true
-
+  # @ignore
   loadExamples: false
+  # @ignore
   localConfig:
     webserver:
       enable_proxy_fix: true
+  # @ignore
   logs:
     path: /opt/airflow/share/logs
     persistence:
@@ -90,14 +99,19 @@ airflow:
     repository: helxplatform/roger
     tag: "latest"
     pullPolicy: Always
+  # -- Postgres db migrations.
+  # @section -- Airflow
   migrations:
     enabled: true
     runAsJob: true
+  # @ignore
   overrideConfiguration:
     webserver:
       enable_proxy_fix: "True"
+  # @ignore
   pgbouncer:
     enabled: false
+  # @ignore
   rbac:
     create: true
     rules:
@@ -109,8 +123,11 @@ airflow:
           - get
           - watch
           - list
+  # @ignore
   redis:
     enabled: false
+  # -- Scheduler resource override and mounting service account.
+  # @section -- Airflow
   scheduler:
     automountServiceAccountToken: true
     resources:
@@ -122,8 +139,11 @@ airflow:
         cpu: 2
         memory: 4G
         ephemeral-storage: 256Mi
+  # @ignore
   triggerer:
     enabled: false
+  # -- Airflow webserver resource override and mounting service account.
+  # @section -- Airflow
   web:
     automountServiceAccountToken: true
     baseUrl: ""
@@ -136,6 +156,8 @@ airflow:
         cpu: 3
         ephemeral-storage: 256Mi
         memory: 4G
+  # -- Airflow Worker pods resource definition.
+  # @section -- Airflow
   worker:
     resources:
       limits:
@@ -148,6 +170,8 @@ airflow:
         memory: 1Gi
 #  Environment variables used by roger. For full option please refer
 #  to [Roger config.yaml](https://github.com/helxplatform/roger/blob/develop/dags/roger/config/config.yaml)
+  # -- Configuration through environment variables for all airflow pods including workers.
+  # @section -- Airflow
   extraEnvVars:
     - name: AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS
       value: "FALSE"
@@ -734,36 +758,22 @@ ui:
 # @raw
 # @section -- Koios Chat UI
 chat:
-  enabled: false
-  replicas: 1
-  root_path: /chat
-  image:
-    repository: containers.renci.org/helxplatform/dug-chatbot
-    tag: v0.0.2
-  resources:
-    limits:
-      cpu: 1
-      memory: 1Gi
-  config:
-    api_url: http://koios-llama-koios-chart.ner/
-  apiPort: 8080
-  service:
-    type: ClusterIP
-
-
-chat_2:
-  enabled: false
-  replicas: 1
-  root_path: /chat-kg
+  enabled: true
   image:
     repository: containers.renci.org/helxplatform/koios-ui
     tag: v0.0.1
-  resources:
-    limits:
-      cpu: 1
-      memory: 1Gi
   config:
-    api_url: http://koios-kg-chat-koios-chart.ner/
-  apiPort: 8080
-  service:
-    type: ClusterIP
+    api_url: ##
+    public_url: ##
+# -- Configuration option for Dug chatbot UI
+# @raw
+# @section -- Koios Chat UI
+chat_2:
+  root_path: /chat-v2
+  enabled: true
+  image:
+    repository: containers.renci.org/helxplatform/koios-ui
+    tag: v1.0.0
+  config:
+    api_url: ##
+    public_url: ##
