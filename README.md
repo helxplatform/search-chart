@@ -6,7 +6,7 @@ A Helm chart for Helx Search components. This chart installs Dug, TranQL , Airfl
 
 For full architeture overview please refer to our documentation [here](https://dug.readthedocs.io/en/latest/architecture/roger/).
 
-![Version: 6.0.0](https://img.shields.io/badge/Version-6.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2.13.3](https://img.shields.io/badge/AppVersion-v2.13.3-informational?style=flat-square) 
+![Version: 6.0.0](https://img.shields.io/badge/Version-6.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2.13.8](https://img.shields.io/badge/AppVersion-v2.13.8-informational?style=flat-square) 
 
 
 ## Values
@@ -46,8 +46,8 @@ For full architeture overview please refer to our documentation [here](https://d
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| chat | object | `{"config":{"api_url":null,"public_url":null},"enabled":true,"image":{"repository":"containers.renci.org/helxplatform/koios-ui","tag":"v0.0.1"}}` | Configuration option for Dug chatbot UI |
-| chat_2 | object | `{"config":{"api_url":null,"public_url":null},"enabled":true,"image":{"repository":"containers.renci.org/helxplatform/koios-ui","tag":"v1.0.0"},"root_path":"/chat-v2"}` | Configuration option for Dug chatbot UI |
+| chat | object | `{"config":{"api_url":null,"public_url":null},"enabled":false,"image":{"repository":"containers.renci.org/helxplatform/koios-ui","tag":"v0.0.1"},"replicas":1,"root_path":"/chat"}` | Configuration option for Dug chatbot UI |
+| chat_2 | object | `{"config":{"api_url":null,"public_url":null},"enabled":false,"image":{"repository":"containers.renci.org/helxplatform/koios-ui","tag":"v1.0.0"},"replicas":1,"root_path":"/chat-v2"}` | Configuration option for Dug chatbot UI |
 
 ### Application Config
 

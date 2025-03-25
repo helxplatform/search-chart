@@ -18,7 +18,7 @@ type: application
 version: 6.0.0
 engine: gotpl
 
-appVersion: "v2.13.3"
+appVersion: "v2.13.8"
 
 # For dynamic updates to dependencies, versions must specify a range. 
 # Apart from version constrains operators = != > < >= <= the following shorthand notations are supported:

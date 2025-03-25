@@ -758,7 +758,9 @@ ui:
 # @raw
 # @section -- Koios Chat UI
 chat:
-  enabled: true
+  enabled: false
+  replicas: 1
+  root_path: /chat
   image:
     repository: containers.renci.org/helxplatform/koios-ui
     tag: v0.0.1
@@ -769,8 +771,9 @@ chat:
 # @raw
 # @section -- Koios Chat UI
 chat_2:
+  enabled: false
+  replicas: 1
   root_path: /chat-v2
-  enabled: true
   image:
     repository: containers.renci.org/helxplatform/koios-ui
     tag: v1.0.0
