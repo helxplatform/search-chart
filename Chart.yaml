@@ -29,7 +29,7 @@ appVersion: "v2.13.3"
 
 dependencies:
   - name: airflow
-    version: "~22.4.0"
+    version: "~22.7.0"
     condition: airflow.enabled
     repository: "https://charts.bitnami.com/bitnami"
   - name: elasticsearch
