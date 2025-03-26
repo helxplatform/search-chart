@@ -41,3 +41,26 @@ spec:
     app: {{ .Values.api.appName }}-chat
   type: {{ .Values.chat.service.type }}
 {{ end }}
+---
+{{ if .Values.chat_2.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "search.api.web.fullname" . }}-chat-2
+  {{- if .Values.api.service.annotations }}
+  annotations:
+    {{- toYaml .Values.api.service.annotations | nindent 4}}
+  {{- end }}
+  labels:
+    app: {{ .Values.api.appName }}-chat-2
+    {{- include "search.api.labels" . | nindent 4 }}
+spec:
+  ports:
+    - name: chat-port
+      protocol: TCP
+      port: {{ .Values.chat.apiPort }}
+      targetPort: {{ .Values.chat.apiPort }}
+  selector:
+    app: {{ .Values.api.appName }}-chat-2
+  type: {{ .Values.chat_2.service.type }}
+{{ end }}

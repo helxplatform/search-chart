@@ -15,10 +15,10 @@ type: application
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
 # Versions are expected to follow Semantic Versioning (https://semver.org/)
-version: 5.2.0
+version: 6.0.0
 engine: gotpl
 
-appVersion: "v2.13.2"
+appVersion: "v2.13.8"
 
 # For dynamic updates to dependencies, versions must specify a range. 
 # Apart from version constrains operators = != > < >= <= the following shorthand notations are supported:
@@ -29,9 +29,9 @@ appVersion: "v2.13.2"
 
 dependencies:
   - name: airflow
-    version: "8.8.0"
+    version: "~22.7.0"
     condition: airflow.enabled
-    repository: "https://airflow-helm.github.io/charts"
+    repository: "https://charts.bitnami.com/bitnami"
   - name: elasticsearch
     version: "8.5.1"
     repository: "https://helm.elastic.co"
@@ -50,5 +50,5 @@ dependencies:
     repository: "@helx-charts"
   - name: ui
     condition: ui.enabled
-    version: "^1.4.0"
+    version: "^1.6.0"
     repository: "@helx-charts"
