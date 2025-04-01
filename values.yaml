@@ -22,12 +22,12 @@ airflow:
         limits:
           memory: 1Gi
           cpu: 500m
-#  setupDBJob:
-#    resources:
-#      limits:
-#        ephemeral-storage: 256Mi
-#        memory: 1Gi
-#        cpu: 500m
+  setupDBJob:
+    resources:
+      limits:
+        ephemeral-storage: 256Mi
+        memory: 1Gi
+        cpu: 500m
   # -- Airflow postgres resource override
   # @section -- Airflow
   postgresql:
@@ -555,7 +555,7 @@ elasticsearch:
 # @raw
 # @section -- Ingress
 ingress:
-  pathType: Prefix
+  pathType: ImplementationSpecific
   className: ""
   enabled: false
   basicAuth:
@@ -767,6 +767,10 @@ chat:
   config:
     api_url: ##
     public_url: ##
+  service:
+    type: ClusterIP
+  apiPort: 8080
+  resources: {}
 # -- Configuration option for Dug chatbot UI
 # @raw
 # @section -- Koios Chat UI
@@ -774,9 +778,13 @@ chat_2:
   enabled: false
   replicas: 1
   root_path: /chat-v2
+  resources: {}
   image:
     repository: containers.renci.org/helxplatform/koios-ui
     tag: v1.0.0
   config:
     api_url: ##
     public_url: ##
+  service:
+    type: ClusterIP
+  apiPort: 8080
