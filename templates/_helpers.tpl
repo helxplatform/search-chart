@@ -193,14 +193,8 @@ Environment vars for API pods
   {{- end }}
 - name: ROOT_PATH
   value: /search-api
-- name: PROGRAM_DESCRIPTION
-  value: {{ .Values.config.program_config | toJson | quote }}
-- name: CONSENT_ID_PATH
-  value: "/home/dug/dug/consent-id.json"
-- name: MISSING_PROGRAM_PATH
-  value: "/home/dug/dug/missing_programs.json"
-- name: MISSING_STUDIES_PATH
-  value: "/home/dug/dug/missing_studies.json"
+- name: STUDIES_PATH
+  value: "/home/dug/dug/program_study_mappings.json"
 
 {{- end -}}
 

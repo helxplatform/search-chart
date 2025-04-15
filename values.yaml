@@ -36,7 +36,6 @@ airflow:
         limits:
           ephemeral-storage: 256Mi
   enabled: true
-
 #  auth:
 #    existingSecret: airflow-config-secrets
 #   AIRFLOW__LOGGING__LOGGING_LEVEL: "INFO"
@@ -168,6 +167,12 @@ airflow:
         cpu: 500m
         ephemeral-storage: 200Mi
         memory: 1Gi
+    livenessProbe:
+      enabled: false
+    readinessProbe:
+      enabled: false
+    startupProbe:
+      enabled: false
 #  Environment variables used by roger. For full option please refer
 #  to [Roger config.yaml](https://github.com/helxplatform/roger/blob/develop/dags/roger/config/config.yaml)
   # -- Configuration through environment variables for all airflow pods including workers.
@@ -430,15 +435,8 @@ api:
 
 # @section -- Application Config
 config:
-  # @TODO find permanent solution for study level data.
   # @ignore
-  program_config: {}
-  # @ignore
-  consent_id_config: {}
-  # @ignore
-  missing_studies: []
-  # @ignore
-  missing_programs: []
+  program_study_mappings: []
 
   annotation:
     # -- Annotator type to use , options are `sapbert` or `monarch`
