@@ -20,3 +20,26 @@ spec:
       storage: "20G"
       {{- end }}
 {{ end }}
+---
+{{- if not (lookup "v1" "PersistentVolumeClaim" .Release.Namespace ( "search-airflow-logs" )) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: search-airflow-logs
+  # Prevents deletion on helm uninstall.
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  {{- if .Values.airflow.logs.persistence }}
+  storageClassName: {{ .Values.airflow.logs.persistence.storageClass }}
+  {{- end }}
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      {{- if .Values.airflow.logs.persistence }}
+      storage: {{ .Values.airflow.logs.persistence.size | default "20G" }}
+      {{- else }}
+      storage: "20G"
+      {{- end }}
+{{ end }}

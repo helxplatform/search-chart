@@ -58,6 +58,8 @@ airflow:
   extraVolumeMounts:
     - name: airflow-data
       mountPath: /opt/airflow/share/data
+    - name: airflow-logs
+      mountPath: /opt/airflow/share/logs
     - name: es-cert
       mountPath: "/opt/certs/es.crt"
       subPath: "ca.crt"
@@ -71,6 +73,9 @@ airflow:
       secret:
         secretName: elasticsearch-master-certs
         defaultMode: 0777
+    - name: airflow-logs
+      persistentVolumeClaim:
+        claimName: search-airflow-logs
   # @ignore
   flower:
     enabled: false
@@ -90,7 +95,6 @@ airflow:
     persistence:
       enabled: true
       storageClass: ""
-      accessMode: ReadWriteMany
       size: 5Gi
   # @ignore
   image:
@@ -182,6 +186,8 @@ airflow:
       value: "FALSE"
     - name: "AIRFLOW__LOGGING__LOGGING_LEVEL"
       value: "DEBUG"
+    - name: "AIRFLOW__LOGGING__BASE_LOG_FOLDER"
+      value: "/opt/airflow/share/logs"
     - name: PYTHONPATH
       value: "/opt/bitnami/airflow/dags/git_github-com-helxplatform-roger-git"
     - name: ROGER_LAKEFS__CONFIG_ENABLED
