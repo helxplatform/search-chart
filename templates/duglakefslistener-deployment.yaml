@@ -1,0 +1,146 @@
+{{ if .Values.duglakefslistener.enabled }}
+
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "search.api.web.fullname" . }}-duglakefslistener
+  labels:
+    app: {{ .Values.api.appName}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.api.appName }}-duglakefslistener
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.api.appName}}-duglakefslistener
+    spec:
+      restartPolicy: Always
+      volumes:
+        - name: pv-storage
+          persistentVolumeClaim:
+            claimName: duglakefslistener-pvc
+        - name: invokeairflowwithdiffconfig
+          configMap:
+            name: {{ include "search.api.web.fullname" . }}-duglakefslistener-invokeairflowwithdiffconfig
+            defaultMode: 0777
+      containers:
+        - name: pod-main
+          image: python:3-alpine
+          env:
+            - name: AIRFLOW_URL
+              value: {{ .Values.duglakefslistener.airflow_url }}
+          command:
+            - sh
+            - -c
+            - |
+              apk add curl
+              apk add wget
+              cd /data;
+              echo STARTED;
+              echo DOWNLOADING DugLakefsEventListeners release {{ .Values.duglakefslistener.git_commit_id }}
+              {{ if .Values.duglakefslistener.git_commit_id }}
+              wget -O DLEL.tar.gz https://github.com/helxplatform/DugLakefsEventListeners/archive/{{ .Values.duglakefslistener.git_commit_id }}.tar.gz
+              echo UNPACKING
+              tar xzvf DLEL.tar.gz;
+              mv ./DLEL ./code
+              {{else}}
+              wget -O DLEL.tar.gz https://github.com/helxplatform/DugLakefsEventListeners/archive/refs/heads/{{ .Values.duglakefslistener.branch}}.tar.gz
+              echo UNPACKING
+              tar xzvf DLEL.tar.gz;
+              mv ./DugLakefsEventListeners* ./code
+              {{ end}}
+              cd  ./code/src;
+              ls -lha;
+              echo INSTALLING REQUIREMENTS
+              pip install -r ./requirements.txt;
+              echo STARTING SERVER
+              cd DugLakefsEventListeners
+
+              # OVERWRITE CONFIG FROM GIT REPO WITH ONE PROVIDED IN HELM VALUES
+              cp -fr /config_from_helm/invoke_airflow_with_diff_config.json ./data/invoke_airflow_with_diff_config.json
+
+              echo
+              echo "*********"
+              echo "invoke_airflow_with_diff_config >>>"
+              cat /config_from_helm/invoke_airflow_with_diff_config.json
+              echo
+              echo "*********"
+
+              python ./main.py;
+
+          volumeMounts:
+            - name: pv-storage
+              mountPath: /data
+            - name: invokeairflowwithdiffconfig
+              mountPath: "/config_from_helm/invoke_airflow_with_diff_config.json"
+              subPath: "invoke_airflow_with_diff_config.json"
+          ports:
+            - name: http
+              containerPort: {{ .Values.duglakefslistener.port }}
+              protocol: TCP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: duglakefslistener-pvc
+  # Prevents deletion on helm uninstall.
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: "32M"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "search.api.web.fullname" . }}-duglakefslistener
+  {{- if .Values.api.service.annotations }}
+  annotations:
+    {{- toYaml .Values.api.service.annotations | nindent 4}}
+  {{- end }}
+  labels:
+    app: {{ .Values.api.appName }}-duglakefslistener
+    {{- include "search.api.labels" . | nindent 4 }}
+spec:
+  ports:
+    - name: duglakefslistener-port
+      protocol: TCP
+      port: {{ .Values.duglakefslistener.port }}
+      targetPort: http
+  selector:
+    app: {{ .Values.api.appName }}-duglakefslistener
+  type: {{ .Values.duglakefslistener.service.type }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "search.api.web.fullname" . }}-duglakefslistener-invokeairflowwithdiffconfig
+data:
+  invoke_airflow_with_diff_config.json: |-
+    {{ .Values.duglakefslistener.commands.invoke_airflow_with_diff_config | toJson }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "search.api.web.fullname" . }}-duglakefslistener
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: {{ .Values.duglakefslistener.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "search.api.web.fullname" . }}-duglakefslistener
+                port:
+                  number:  {{ .Values.duglakefslistener.port }}
+
+{{ end }}
