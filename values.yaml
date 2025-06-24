@@ -613,7 +613,7 @@ redis:
   enabled: true
   image:
     repository: falkordb/falkordb
-    tag: v4.0.10
+    tag: v4.8.7
   usePassword: true
   master:
     persistence:
