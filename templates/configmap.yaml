@@ -32,7 +32,6 @@ metadata:
     app: "{{ template "search.fullname" . }}"
 data:
   data_directory: "/opt/airflow/share/data"
-  data_source: {{ .Values.config.data_source }}
   input_sets: {{ .Values.config.input_sets }}
   kgx_data_sets: {{ .Values.config.kgx_data_sets }}
   normalizer_url: {{ .Values.config.annotation.normalizer_url | quote }}
