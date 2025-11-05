@@ -15,10 +15,10 @@ type: application
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
 # Versions are expected to follow Semantic Versioning (https://semver.org/)
-version: 6.0.3
+version: 7.0.0
 engine: gotpl
 
-appVersion: "v2.13.9"
+appVersion: "v2.13.12"
 
 # For dynamic updates to dependencies, versions must specify a range. 
 # Apart from version constrains operators = != > < >= <= the following shorthand notations are supported:
