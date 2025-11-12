@@ -3,15 +3,20 @@ nameOverride: ""
 
 # @section -- Airflow
 airflow:
+  # @section -- Airflow
   defaultAirflowRepository: airflow
+  # @section -- Airflow
   airflowVersion: "3.1.1"
+  # @section -- Airflow
   images:
     airflow:
       repository: "containers.renci.org/helxplatform/airflow"
       tag: "3.1.1"
+  # @section -- Airflow
   data:
     metadataConnection:
       pass: postgres
+  # @section -- Airflow
   postgresql:
     auth:
       password: postgres
@@ -20,8 +25,7 @@ airflow:
       registry: containers.renci.org
       repository: vgl/postgres-alpine
       tag: 18.0.1
-#  - name: PYTHONPATH
-    #    value: "/opt/bitnami/airflow/dags/git_github-com-helxplatform-roger-git"
+  # @section -- Airflow
   extraEnv: |
     - name: ROGER_LAKEFS__CONFIG_ENABLED
       valueFrom:
@@ -219,6 +223,7 @@ airflow:
       value: "/opt/certs/es.crt"
 
 
+  # @section -- Airflow
   volumes:
     - name: airflow-data
       persistentVolumeClaim:
@@ -230,7 +235,7 @@ airflow:
     - name: airflow-logs
       persistentVolumeClaim:
         claimName: 'search-airflow-logs'
-
+  # @section -- Airflow
   volumeMounts:
     - name: airflow-data
       mountPath: /opt/airflow/share/data
@@ -239,8 +244,9 @@ airflow:
     - name: es-cert
       mountPath: "/opt/certs/es.crt"
       subPath: "ca.crt"
+  # @section -- Airflow
   executor: "KubernetesExecutor"
-  # Required for airflow 3.x.x
+  # @section -- Airflow
   dagProcessor:
     enabled: true
     logGroomerSidecar:
@@ -249,10 +255,12 @@ airflow:
       limits:
         cpu: 2
         memory: 2Gi
+  # @section -- Airflow
   workers:
     replicas: 0
     logGroomerSidecar:
       enabled: false
+  # @section -- Airflow
   config:
     api:
       # This is the key for internal API authentication
@@ -260,20 +268,9 @@ airflow:
     # Ensure these are set
     core:
       internal_api_secret_key: "{{ .Values.webserverSecretKey }}"
-  # Make sure you have a consistent secret key
+  # @section -- Airflow
   webserverSecretKey: "your-secret-key-here"
-#  env:
-#    - name: AIRFLOW__API__SECRET_KEY
-#      valueFrom:
-#        secretKeyRef:
-#          name: airflow-api-secret-key
-#          key: api-secret-key
-#    - name: AIRFLOW__API_AUTH__JWT_SECRET
-#      valueFrom:
-#        secretKeyRef:
-#          name: airflow-jwt-secret
-#          key: jwt-secret
-
+  # @section -- Airflow
   scheduler:
     env:
       - name: AIRFLOW__CORE__EXECUTOR
@@ -297,12 +294,13 @@ airflow:
         - -c
         - |
           airflow jobs check --job-type SchedulerJob --hostname "$(hostname)"
-
+  # @section -- Airflow
   apiServer:
     resources:
       limits:
         cpu: 1
         memory: 2Gi
+  # @section -- Airflow
   webServer:
     defaultUser:
       enabled: true
@@ -312,14 +310,18 @@ airflow:
       firstName: admin
       lastName: user
       password: admin
+  # @section -- Airflow
   triggerer:
     enabled: false
+  # @section -- Airflow
   statsd:
     enabled: false
+  # @section -- Airflow
   redis:
     enabled: false
     serviceAccount:
       create: false
+  # @section -- Airflow
   dags:
     persistence:
       # Enable persistent volume for storing dags
