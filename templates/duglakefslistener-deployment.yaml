@@ -124,23 +124,4 @@ metadata:
 data:
   invoke_airflow_with_diff_config.json: |-
     {{ .Values.duglakefslistener.commands.invoke_airflow_with_diff_config | toJson }}
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: {{ include "search.api.web.fullname" . }}-duglakefslistener
-spec:
-  ingressClassName: nginx
-  rules:
-    - host: {{ .Values.duglakefslistener.host }}
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ include "search.api.web.fullname" . }}-duglakefslistener
-                port:
-                  number:  {{ .Values.duglakefslistener.port }}
-
 {{ end }}
