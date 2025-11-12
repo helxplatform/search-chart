@@ -8,6 +8,8 @@ For full architeture overview please refer to our documentation [here](https://d
 
 ![Version: 7.0.0](https://img.shields.io/badge/Version-7.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v2.13.12](https://img.shields.io/badge/AppVersion-v2.13.12-informational?style=flat-square) 
 
+> [!Note]
+> When installing you might notice a warning from bitnami postgres chart about the use of unknown postgres docker image, that warning is safe to ignore.
 
 ## Values
 
