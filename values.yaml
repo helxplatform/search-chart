@@ -3,59 +3,240 @@ nameOverride: ""
 
 # @section -- Airflow
 airflow:
-  # -- Default init containers resource overrides.
   # @section -- Airflow
-  defaultInitContainers:
-    loadDAGsPlugins:
-      resources:
-        requests:
-          cpu: 500m
-          memory: 1Gi
-        limits:
-          memory: 1Gi
-          cpu: 500m
-    prepareConfig:
-      resources:
-        requests:
-          cpu: 500m
-          memory: 1Gi
-        limits:
-          memory: 1Gi
-          cpu: 500m
-  setupDBJob:
-    resources:
-      limits:
-        ephemeral-storage: 256Mi
-        memory: 1Gi
-        cpu: 500m
-  # -- Airflow postgres resource override
+  defaultAirflowRepository: airflow
+  # @section -- Airflow
+  airflowVersion: "3.1.1"
+  # @section -- Airflow
+  images:
+    airflow:
+      repository: "containers.renci.org/helxplatform/airflow"
+      tag: "3.1.1"
+  # @section -- Airflow
+  data:
+    metadataConnection:
+      pass: postgres
   # @section -- Airflow
   postgresql:
-    primary:
-      resources:
-        limits:
-          ephemeral-storage: 256Mi
-  enabled: true
-#  auth:
-#    existingSecret: airflow-config-secrets
-#   AIRFLOW__LOGGING__LOGGING_LEVEL: "INFO"
-#   AIRFLOW__SCHEDULER__SCHEDULE_AFTER_TASK_EXECUTION: "FALSE"
-  # -- Workflow dag definitions, github location and branch
+    auth:
+      password: postgres
+      postgresPassword: postgres
+    image:
+      registry: containers.renci.org
+      repository: vgl/postgres-alpine
+      tag: 18.0.1
   # @section -- Airflow
-  dags:
-    enabled: true
-    repositories:
-      - repository: "https://github.com/helxplatform/roger.git"
-        branch: "main"
-        path: "/dags"
-    syncWait: 60
-  # -- Executor type
-  # @section -- Airflow
-  executor: KubernetesExecutor
+  extraEnv: |
+    - name: ROGER_LAKEFS__CONFIG_ENABLED
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: lakefs_enabled
+    - name: ROGER_LAKEFS__CONFIG_HOST
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: lakefs_host
+    - name: ROGER_LAKEFS__CONFIG_ACCESS__KEY__ID
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: lakefs_access_key_id
+    - name: ROGER_LAKEFS__CONFIG_SECRET__ACCESS__KEY
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: lakefs_secret_access_key
+    - name: ROGER_LAKEFS__CONFIG_BRANCH
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: lakefs_branch
+    - name: ROGER_LAKEFS__CONFIG_REPO
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: lakefs_repo
+    - name: ROGER_ANNOTATION_NORMALIZER
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: normalizer_url
+    - name: ROGER_ANNOTATION_ANNOTATOR__TYPE
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: annotator_type
+    - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_MONARCH_URL
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: annotator_monarch_url
+    - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_CLASSIFICATION__URL
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: annotator_sapbert_classification_url
+    - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_ANNOTATOR__URL
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: annotator_sapbert_annotator_url
+    - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_BAGEL_ENABLED
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: annotator_sapbert_bagel_enabled
+    - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_BAGEL_URL
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: annotator_sapbert_bagel_url
+    - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_BAGEL_PROMPT
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: annotator_sapbert_bagel_prompt
+    - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_BAGEL_LLM__ARGS_LLM__MODEL__NAME
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: annotator_sapbert_bagel_llm_model_name
+    - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_BAGEL_LLM__ARGS_ORGANIZATION
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: annotator_sapbert_bagel_llm_organization
+    - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_BAGEL_LLM__ARGS_ACCESS__KEY
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: annotator_sapbert_bagel_llm_access_key
+    - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_SCORE__THRESHOLD
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: annotator_sapbert_score_threshold
+    - name: ROGER_ANNOTATION_SYNONYM__SERVICE
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: synonymizer_url
+    - name: ROGER_DATA_DIR
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: data_directory
+    - name: ROGER_DUG__INPUTS_DATA__SETS
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: input_sets
+    - name: ROGER_ELASTICSEARCH_HOST
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-elastic-config"
+          key: host
+    - name: ROGER_ELASTICSEARCH_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: "{{ .Release.Name }}-elastic-secret"
+          key: password
+    - name: ROGER_ELASTICSEARCH_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: "{{ .Release.Name }}-elastic-secret"
+          key: username
+    - name: ROGER_REDISGRAPH_HOST
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-redis-config"
+          key: host
+    - name: ROGER_REDISGRAPH_GRAPH
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-redis-config"
+          key: graph
+    - name: ROGER_REDISGRAPH_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: "{{ .Release.Name }}-redis-secret"
+          key: password
+    - name: ROGER_REDISGRAPH_PORT
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-redis-config"
+          key: port
+    - name: ROGER_S3_ACCESS__KEY
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: s3_access_key
+    - name: ROGER_S3_BUCKET
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: s3_bucket
+    - name: ROGER_S3_HOST
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: s3_host
+    - name: ROGER_S3_SECRET__KEY
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: s3_secret_key
+    - name: ROGER_KGX_DATA__SETS
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: kgx_data_sets
+    - name: ROGER_INDEXING_NODE__TO__ELEMENT__QUERIES_ENABLED
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: node_to_queries_enabled
+    - name: ROGER_INDEXING_ELEMENT__MAPPING
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: element_mappings
+    - name: ROGER_ELASTICSEARCH_NBOOST__HOST
+      value: nboost $ TODO compute this
+    - name: ROGER_INDEXING_TRANQL__ENDPOINT
+      valueFrom:
+        configMapKeyRef:
+          name: "{{ .Release.Name }}-data-config"
+          key: tranql_endpoint
+    - name: AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS
+      value: "FALSE"
+    - name: "AIRFLOW__LOGGING__LOGGING_LEVEL"
+      value: "DEBUG"
+    - name: "AIRFLOW__LOGGING__BASE_LOG_FOLDER"
+      value: "/opt/airflow/share/logs"
+    - name: "AIRFLOW__WEBSERVER__APPLICATION_ROOT"
+      value: "/airflow"
+    - name: ROGER_ELASTICSEARCH_SCHEME
+      value: "https"
+    - name: ROGER_ELASTICSEARCH_CA__PATH
+      value: "/opt/certs/es.crt"
 
-  # -- These volumes are mounted on all airflow pods , aswell as executor pods.
+
   # @section -- Airflow
-  extraVolumeMounts:
+  volumes:
+    - name: airflow-data
+      persistentVolumeClaim:
+        claimName: 'search-data'
+    - name: es-cert
+      secret:
+        secretName: elasticsearch-master-certs
+        defaultMode: 0777
+    - name: airflow-logs
+      persistentVolumeClaim:
+        claimName: 'search-airflow-logs'
+  # @section -- Airflow
+  volumeMounts:
     - name: airflow-data
       mountPath: /opt/airflow/share/data
     - name: airflow-logs
@@ -63,324 +244,94 @@ airflow:
     - name: es-cert
       mountPath: "/opt/certs/es.crt"
       subPath: "ca.crt"
-  # -- Volumes section for all airflow pods, including executor pods.
   # @section -- Airflow
-  extraVolumes:
-    - name: airflow-data
-      persistentVolumeClaim:
-        claimName: search-data
-    - name: es-cert
-      secret:
-        secretName: elasticsearch-master-certs
-        defaultMode: 0777
-    - name: airflow-logs
-      persistentVolumeClaim:
-        claimName: search-airflow-logs
-  # @ignore
-  flower:
-    enabled: false
-  # @ignore
-  global:
-    security:
-      allowInsecureImages: true
-  # @ignore
-  loadExamples: false
-  # @ignore
-  localConfig:
-    webserver:
-      enable_proxy_fix: true
-  # @ignore
-  logs:
-    path: /opt/airflow/share/logs
-    persistence:
-      enabled: true
-      storageClass: ""
-      size: 5Gi
-  # @ignore
-  image:
-    registry: containers.renci.org
-    repository: helxplatform/roger
-    tag: "latest"
-    pullPolicy: Always
-  # -- Postgres db migrations.
+  executor: "KubernetesExecutor"
   # @section -- Airflow
-  migrations:
+  dagProcessor:
     enabled: true
-    runAsJob: true
-  # @ignore
-  overrideConfiguration:
-    webserver:
-      enable_proxy_fix: "True"
-  # @ignore
-  pgbouncer:
-    enabled: false
-  # @ignore
-  rbac:
-    create: true
-    rules:
-      - apiGroups: [""]
-        resources:
-          - pods
-          - pods/log
-        verbs:
-          - get
-          - watch
-          - list
-  # @ignore
-  redis:
-    enabled: false
-  # -- Scheduler resource override and mounting service account.
+    logGroomerSidecar:
+      enabled: false
+    resources:
+      limits:
+        cpu: 2
+        memory: 2Gi
+  # @section -- Airflow
+  workers:
+    replicas: 0
+    logGroomerSidecar:
+      enabled: false
+  # @section -- Airflow
+  config:
+    api:
+      # This is the key for internal API authentication
+      auth_backends: airflow.api.auth.backend.basic_auth
+    # Ensure these are set
+    core:
+      internal_api_secret_key: "{{ .Values.webserverSecretKey }}"
+  # @section -- Airflow
+  webserverSecretKey: "your-secret-key-here"
   # @section -- Airflow
   scheduler:
-    automountServiceAccountToken: true
-    resources:
-      limits:
-        cpu: 2
-        memory: 4G
-        ephemeral-storage: 256Mi
-      requests:
-        cpu: 2
-        memory: 4G
-        ephemeral-storage: 256Mi
-  # @ignore
-  triggerer:
-    enabled: false
-  # -- Airflow webserver resource override and mounting service account.
-  # @section -- Airflow
-  web:
-    automountServiceAccountToken: true
-    baseUrl: ""
-    resources:
-      limits:
-        cpu: 3
-        ephemeral-storage: 256Mi
-        memory: 4G
-      requests:
-        cpu: 3
-        ephemeral-storage: 256Mi
-        memory: 4G
-  # -- Airflow Worker pods resource definition.
-  # @section -- Airflow
-  worker:
+    env:
+      - name: AIRFLOW__CORE__EXECUTOR
+        value: "KubernetesExecutor"
     resources:
       limits:
         cpu: 1
-        ephemeral-storage: 200Mi
-        memory: 15Gi
-      requests:
-        cpu: 500m
-        ephemeral-storage: 200Mi
-        memory: 1Gi
-    livenessProbe:
-      enabled: false
-    readinessProbe:
+        memory: 2Gi
+    logGroomerSidecar:
+      # Whether to deploy the Airflow scheduler log groomer sidecar.
       enabled: false
     startupProbe:
-      enabled: false
-#  Environment variables used by roger. For full option please refer
-#  to [Roger config.yaml](https://github.com/helxplatform/roger/blob/develop/dags/roger/config/config.yaml)
-  # -- Configuration through environment variables for all airflow pods including workers.
+      command:
+        - bash
+        - -c
+        - |
+          airflow jobs check --job-type SchedulerJob --hostname "$(hostname)"
+    livenessProbe:
+      command:
+        - bash
+        - -c
+        - |
+          airflow jobs check --job-type SchedulerJob --hostname "$(hostname)"
   # @section -- Airflow
-  extraEnvVars:
-    - name: AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS
-      value: "FALSE"
-    - name: "AIRFLOW__LOGGING__LOGGING_LEVEL"
-      value: "DEBUG"
-    - name: "AIRFLOW__LOGGING__BASE_LOG_FOLDER"
-      value: "/opt/airflow/share/logs"
-    - name: PYTHONPATH
-      value: "/opt/bitnami/airflow/dags/git_github-com-helxplatform-roger-git"
-    - name: ROGER_LAKEFS__CONFIG_ENABLED
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: lakefs_enabled
-    - name: ROGER_LAKEFS__CONFIG_HOST
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: lakefs_host
-    - name: ROGER_LAKEFS__CONFIG_ACCESS__KEY__ID
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: lakefs_access_key_id      
-    - name: ROGER_LAKEFS__CONFIG_SECRET__ACCESS__KEY
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: lakefs_secret_access_key
-    - name: ROGER_LAKEFS__CONFIG_BRANCH
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: lakefs_branch
-    - name: ROGER_LAKEFS__CONFIG_REPO
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: lakefs_repo
-    - name: ROGER_ANNOTATION_NORMALIZER
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: normalizer_url
-    - name: ROGER_ANNOTATION_ANNOTATOR__TYPE
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: annotator_type
-    - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_MONARCH_URL
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: annotator_monarch_url
-    - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_CLASSIFICATION__URL
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: annotator_sapbert_classification_url
-    - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_ANNOTATOR__URL
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: annotator_sapbert_annotator_url
-    - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_BAGEL_ENABLED
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: annotator_sapbert_bagel_enabled
-    - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_BAGEL_URL
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: annotator_sapbert_bagel_url
-    - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_BAGEL_PROMPT
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: annotator_sapbert_bagel_prompt
-    - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_BAGEL_LLM__ARGS_LLM__MODEL__NAME
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: annotator_sapbert_bagel_llm_model_name
-    - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_BAGEL_LLM__ARGS_ORGANIZATION
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: annotator_sapbert_bagel_llm_organization
-    - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_BAGEL_LLM__ARGS_ACCESS__KEY
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: annotator_sapbert_bagel_llm_access_key
-    - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_SCORE__THRESHOLD
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: annotator_sapbert_score_threshold
-    - name: ROGER_ANNOTATION_SYNONYM__SERVICE
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: synonymizer_url
-    - name: ROGER_DATA_DIR
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: data_directory
-    - name: ROGER_DUG__INPUTS_DATA__SETS
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: input_sets
-    - name: ROGER_DUG__INPUTS_DATA__SOURCE
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: data_source
-    - name: ROGER_ELASTICSEARCH_HOST
-      valueFrom:
-        configMapKeyRef:
-          name: search-elastic-config
-          key: host
-    - name: ROGER_ELASTICSEARCH_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: search-elastic-secret
-          key: password      
-    - name: ROGER_ELASTICSEARCH_USERNAME
-      valueFrom:
-        secretKeyRef:
-          name: search-elastic-secret
-          key: username
-    - name: ROGER_ELASTICSEARCH_SCHEME
-      value: "https"
-    - name: ROGER_ELASTICSEARCH_CA__PATH
-      value: "/opt/certs/es.crt"          
-    - name: ROGER_REDISGRAPH_HOST
-      valueFrom:
-        configMapKeyRef:
-          name: search-redis-config
-          key: host
-    - name: ROGER_REDISGRAPH_GRAPH
-      valueFrom:
-        configMapKeyRef:
-          name: search-redis-config
-          key: graph
-    - name: ROGER_REDISGRAPH_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: search-redis-secret
-          key: password
-    - name: ROGER_REDISGRAPH_PORT
-      valueFrom:
-        configMapKeyRef:
-          name: search-redis-config
-          key: port
-    - name: ROGER_S3_ACCESS__KEY
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: s3_access_key
-    - name: ROGER_S3_BUCKET
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: s3_bucket
-    - name: ROGER_S3_HOST
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: s3_host
-    - name: ROGER_S3_SECRET__KEY
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: s3_secret_key
-    - name: ROGER_KGX_DATA__SETS
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: kgx_data_sets
-    - name: ROGER_INDEXING_NODE__TO__ELEMENT__QUERIES_ENABLED
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: node_to_queries_enabled
-    - name: ROGER_INDEXING_ELEMENT__MAPPING
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: element_mappings
-    - name: ROGER_ELASTICSEARCH_NBOOST__HOST
-      value: nboost $ TODO compute this
-    - name: ROGER_INDEXING_TRANQL__ENDPOINT
-      valueFrom:
-        configMapKeyRef:
-          name: search-data-config
-          key: tranql_endpoint
+  apiServer:
+    resources:
+      limits:
+        cpu: 1
+        memory: 2Gi
+  # @section -- Airflow
+  webServer:
+    defaultUser:
+      enabled: true
+      role: Admin
+      username: admin
+      email: admin@example.com
+      firstName: admin
+      lastName: user
+      password: admin
+  # @section -- Airflow
+  triggerer:
+    enabled: false
+  # @section -- Airflow
+  statsd:
+    enabled: false
+  # @section -- Airflow
+  redis:
+    enabled: false
+    serviceAccount:
+      create: false
+  # @section -- Airflow
+  dags:
+    persistence:
+      # Enable persistent volume for storing dags
+      enabled: false
+    gitSync:
+      enabled: true
+      repo: https://github.com/helxplatform/roger.git
+      branch: main
+      subPath: "dags"          
+
 api:
   # -- Number of relicas for Dug API server
   # @section -- Dug API Server
@@ -478,9 +429,6 @@ config:
   # -- Input dataset to include during ingestion. These refer to repo names on lakefs. With version (branch) tags.
   # @section -- Application Config
   input_sets: "bdc:v2.0,topmed:v2.0"
-  # Depricated
-  # @ignore
-  data_source: "stars"
   # -- Knowledge graph input datasets to ingest for the dug Knowledge graph. These are lakefs repo names with version(branches) as tags.
   # @section -- Application Config
   kgx_data_sets: "baseline-graph:v5.0,cde-graph:v5.0"
@@ -493,30 +441,30 @@ config:
   # Deprecated
   # @ignore
   s3:
-    host: ""
-    bucket: ""
-    access_key: ""
-    secret_key: ""
+    host: "http://s3.aws"
+    bucket: "bucket"
+    access_key: "access-key"
+    secret_key: "secret-key"
 
   lakefs:
     # -- Enables lakefs usage for input and output on data ingest.
     # @section -- Application Config
-    enable: False
+    enabled: True
     # -- Lakefs host address
     # @section -- Application Config
-    host: ""
+    host: "https://lakefs.apps.renci.org"
     # -- Lakefs access key
     # @section -- Application Config
-    access_key: ""
+    access_key: "accesskey"
     # -- Lakefs secret key
     # @section -- Application Config
-    secret_key: ""
+    secret_key: "secretkey"
     # -- Branch to write output files to.
     # @section -- Application Config
-    branch: ""
+    branch: "main"
     # -- Lakefs repo to write outputs to
     # @section -- Application Config
-    repo: ""
+    repo: "test-repo"
 
 # --  Elastic search for more information checkout full elasticsearch chart options at [https://github.com/elastic/helm-charts/tree/v8.5.1](https://github.com/elastic/helm-charts/tree/v8.5.1)
 # @raw
@@ -541,7 +489,7 @@ elasticsearch:
           key: username
     - name: LOG4J_FORMAT_MSG_NO_LOOKUPS
       value: "true"
-  imageTag: "8.17.3"
+  imageTag: "8.19.6"
   maxUnavailable: 0
   replicas: 3
   resources:
@@ -584,7 +532,7 @@ ingress:
       prepend: true
       port: 8081
     - path: "/airflow"
-      name: airflow
+      name: api-server
       port: 8080
       prepend: true
   rewrite_paths:
@@ -601,6 +549,9 @@ ingress:
 # @raw
 # @section -- Redis
 redis:
+  fullnameOverride: ""
+  serviceAccount:
+    create: false
   commonConfiguration: |-
     # Enable AOF https://redis.io/topics/persistence#append-only-file
     appendonly no
@@ -612,8 +563,9 @@ redis:
   clusterDomain: cluster.local
   enabled: true
   image:
-    repository: falkordb/falkordb
-    tag: v4.0.10
+    registry: containers.renci.org
+    repository: helxplatform/falkor
+    tag: v4.14.4-alpine
   usePassword: true
   master:
     persistence:
@@ -640,7 +592,7 @@ redis:
       enabled: false
     extraFlags:
       - "--loadmodule"
-      - "/FalkorDB/bin/src/falkordb.so"
+      - "/var/lib/falkordb/bin/falkordb.so"
       - "THREAD_COUNT"
       - "8"
       - "OMP_THREAD_COUNT"
