@@ -221,6 +221,8 @@ airflow:
       value: "https"
     - name: ROGER_ELASTICSEARCH_CA__PATH
       value: "/opt/certs/es.crt"
+    - name: AIRFLOW__CORE__TASK_SUCCESS_OVERTIME
+      value: "20000"
 
 
   # @section -- Airflow
