@@ -10,8 +10,8 @@ airflow:
   # @section -- Airflow
   images:
     airflow:
-      repository: "containers.renci.org/helxplatform/airflow"
-      tag: "3.1.1"
+      repository: "containers.renci.org/helxplatform/roger"
+      tag: "v0.11.9"
   # @section -- Airflow
   data:
     metadataConnection:
@@ -24,7 +24,7 @@ airflow:
     image:
       registry: containers.renci.org
       repository: vgl/postgres-alpine
-      tag: 18.4.1
+      tag: 18.4.2
     primary:
       extendedConfiguration: |
         max_connections = 500
@@ -226,6 +226,12 @@ airflow:
       value: "/opt/certs/es.crt"
     - name: AIRFLOW__CORE__TASK_SUCCESS_OVERTIME
       value: "20000"
+    - name: AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_SIZE
+      value: "15"       # default 5
+    - name: AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_OVERFLOW
+      value: "30"    # default 10
+    - name: AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_RECYCLE
+      value: "1800"    
 
 
   # @section -- Airflow
@@ -495,7 +501,7 @@ elasticsearch:
     - name: LOG4J_FORMAT_MSG_NO_LOOKUPS
       value: "true"
   image: "docker.elastic.co/elasticsearch/elasticsearch-wolfi"
-  imageTag: "8.19.12"
+  imageTag: "8.19.20"
   maxUnavailable: 0
   replicas: 3
   resources:
