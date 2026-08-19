@@ -10,8 +10,8 @@ airflow:
   # @section -- Airflow
   images:
     airflow:
-      repository: "containers.renci.org/helxplatform/airflow"
-      tag: "3.1.1"
+      repository: "containers.renci.org/helxplatform/roger"
+      tag: "v0.11.9"
   # @section -- Airflow
   data:
     metadataConnection:
@@ -24,7 +24,7 @@ airflow:
     image:
       registry: containers.renci.org
       repository: vgl/postgres-alpine
-      tag: 18.4.1
+      tag: 18.4.2
     primary:
       extendedConfiguration: |
         max_connections = 500
@@ -501,7 +501,7 @@ elasticsearch:
     - name: LOG4J_FORMAT_MSG_NO_LOOKUPS
       value: "true"
   image: "docker.elastic.co/elasticsearch/elasticsearch-wolfi"
-  imageTag: "8.19.12"
+  imageTag: "8.19.20"
   maxUnavailable: 0
   replicas: 3
   resources:
