@@ -226,6 +226,12 @@ airflow:
       value: "/opt/certs/es.crt"
     - name: AIRFLOW__CORE__TASK_SUCCESS_OVERTIME
       value: "20000"
+    - name: AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_SIZE
+      value: "15"       # default 5
+    - name: AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_OVERFLOW
+      value: "30"    # default 10
+    - name: AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_RECYCLE
+      value: "1800"    
 
 
   # @section -- Airflow
