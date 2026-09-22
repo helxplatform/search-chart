@@ -3,6 +3,7 @@ nameOverride: ""
 
 # @section -- Airflow
 airflow:
+
   # @section -- Airflow
   defaultAirflowRepository: airflow
   # @section -- Airflow
@@ -214,8 +215,12 @@ airflow:
           key: tranql_endpoint
     - name: AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS
       value: "FALSE"
+    # DEBUG puts every third-party per-request log line into the task
+    # log. requests_cache alone emits 5 lines per HTTP call, which took
+    # one annotate task to a 2.9 GB log -- large enough to evict the
+    # api-server (ephemeral-storage 750Mi) when opened in the UI.
     - name: "AIRFLOW__LOGGING__LOGGING_LEVEL"
-      value: "DEBUG"
+      value: "INFO"
     - name: "AIRFLOW__LOGGING__BASE_LOG_FOLDER"
       value: "/opt/airflow/share/logs"
     - name: "AIRFLOW__WEBSERVER__APPLICATION_ROOT"
@@ -279,6 +284,24 @@ airflow:
     # Ensure these are set
     core:
       internal_api_secret_key: "{{ .Values.webserverSecretKey }}"
+      # Worker pods are memory-hungry (see workers.resources) and the
+      # namespace ResourceQuota rejects pod creation once the sum of limits
+      # is reached. Keep the ceiling under that quota so tasks queue inside
+      # Airflow rather than being submitted and bounced.
+      parallelism: 12
+    workers:
+      # A task supervisor kills its own task after this many consecutive
+      # heartbeat failures. At the default of 3, with min_heartbeat_interval
+      # 5s, ~15-30s of api-server unavailability destroys a task that has
+      # been running for a day -- observed in heal-dev, where the api-server
+      # is evicted periodically and a 21h annotate task died with it.
+      max_failed_heartbeats: 20
+    kubernetes_executor:
+      # On a 403 "exceeded quota" from the Kube API, requeue the task rather
+      # than failing it. The default of 0 gives up on the first rejection,
+      # which marks tasks failed for what is only a transient capacity
+      # problem. -1 waits indefinitely for capacity to free up.
+      task_publish_max_retries: -1
   # @section -- Airflow
   webserverSecretKey: "your-secret-key-here"
   # @section -- Airflow
@@ -292,7 +315,31 @@ airflow:
         memory: 2Gi
     logGroomerSidecar:
       # Whether to deploy the Airflow scheduler log groomer sidecar.
-      enabled: false
+      # Task logs live on the shared PVC and nothing else deletes
+      # them; a single long annotate task can write hundreds of MB.
+      # The groomer is retention, not rotation -- Airflow writes one
+      # file per task try and never rolls it, so keeping each file
+      # small is the logging level's job, not this.
+      enabled: true
+      retentionDays: 7
+      # The upstream sidecar runs /clean-logs, which ships in the
+      # apache/airflow image but not in helxplatform/roger -- it
+      # crashlooped with "bash: /clean-logs: No such file or
+      # directory". Same job, inline.
+      command:
+        - bash
+        - -c
+        - |
+          RETENTION="${AIRFLOW__LOG_RETENTION_DAYS:-7}"
+          DIR="${AIRFLOW__LOGGING__BASE_LOG_FOLDER:-/opt/airflow/logs}"
+          while true; do
+            find "$DIR" -type f -name "*.log" -mtime +"$RETENTION" -delete
+            find "$DIR" -mindepth 1 -type d -empty -delete
+            sleep 900
+          done
+      # the subchart otherwise appends its default args
+      # (bash /clean-logs) onto the command above
+      args: []
     startupProbe:
       command:
         - bash
@@ -565,10 +612,24 @@ redis:
   serviceAccount:
     create: false
   commonConfiguration: |-
-    # Enable AOF https://redis.io/topics/persistence#append-only-file
+    # No AOF; RDB snapshots only (the graph is rebuildable from the bulk
+    # load csvs in lakefs, so this is a convenience, not the source of truth)
     appendonly no
-    # Disable RDB persistence, AOF persistence already enabled.
     save 300 100000
+    # A failed snapshot must not halt the graph. The RDB target is
+    # master.persistence.size and a full graph does not necessarily
+    # compress under it; with the default `yes`, one failed bgsave makes
+    # redis refuse all writes and a bulk load dies with an error that
+    # looks nothing like a disk problem.
+    stop-writes-on-bgsave-error no
+    # Cap below the pod memory limit so redis evicts rather than being
+    # OOMKilled. volatile-lru only evicts keys carrying a TTL: the dug
+    # annotation response cache sets one (annotation.http_cache_expire_seconds),
+    # the falkordb graph keys do not, so the cache is spent first and the
+    # graph is never touched. Leave headroom under the limit for
+    # fragmentation and bgsave fork copy-on-write.
+    maxmemory 55gb
+    maxmemory-policy volatile-lru
   auth:
     existingSecret: search-redis-secret
     existingSecretPasswordKey: password
@@ -581,14 +642,14 @@ redis:
   usePassword: true
   master:
     persistence:
-      size: 50Gi
+      size: 60Gi
     resources:
       limits:
         cpu: 2
-        memory: 45Gi
+        memory: 60Gi
       requests:
         cpu: 1
-        memory: 45Gi
+        memory: 10Gi
     command: ""
     readinessProbe:
       enabled: true
@@ -678,8 +739,21 @@ tranql:
   extraEnv:
     - name: WEB_PATH_PREFIX
       value: "/tranql"
+    - name: SKIP_REDIS_SCHEMA
+      value: "true"
   gunicorn:
-    workerCount: 1
+    # Bounded by this pod's cpu/memory limits below, NOT by how much
+    # concurrency the crawl would like. TranQL is CPU bound per request:
+    # SchemaFactory.get_instance() returns copy.deepcopy(_cached), and the
+    # query path calls it twice, so each query deep-copies the whole schema
+    # twice in Python with no help from redis. At 16 workers on cpu: 2 the
+    # pod pinned at 2005m with redis idle at 7m and a crawl made no
+    # progress for 30+ minutes. Each worker also builds and holds its own
+    # schema (_cached is per process), so memory scales with this too --
+    # 16 workers reached 1895Mi of the 2G limit.
+    # Raise this only together with the cpu/memory limits, and preferably
+    # after fixing the per-request deepcopy in tranql.
+    workerCount: 4
     workerTimeout: 1600
   resources:
     limits:
@@ -757,31 +831,24 @@ chat_2:
     type: ClusterIP
   apiPort: 8080
 
-
-# -- DugLakeFSListener config
-duglakefslistener:
-  enabled: true
-  port: 8001
-  git_commit_id: null
-  branch: "main"
-  airflow_url: "http://airflow:airflow@127.0.0.1:8080/api/v1/"
-  service:
-    type: ClusterIP
-  commands:
-    invoke_airflow_with_diff_config:
-      {
-        "dags": [
-          {
-            "dag_id": "dag_test",
-            "repository_id": "bacpac-test",
-            "branch_name": "main",
-            "last_commit_id": null
-          },
-          {
-            "dag_id": "annotate_and_index",
-            "repository_id": "bacpac",
-            "branch_name": "main",
-            "last_commit_id": null
-          }
-        ]
-      }
+# -- lakeFS -> Airflow event listener (subchart, OCI)
+# @section -- Event listener
+dug-lakefs-event-listeners:
+  # off by default: it needs the metadata DB secret wired below, and the
+  # lakeFS actions installed in the source repos, before it does anything
+  enabled: false
+  airflow:
+    metadataSecret:
+      # the same secret the scheduler uses; `airflow dags trigger` writes
+      # the DagRun through the DB, so this is what it authenticates with
+      name: "search-metadata"
+      key: connection
+  hook:
+    # must match ROGER_HOOK_TOKEN in the lakeFS server environment, which
+    # is where the action resolves {{ ENV.ROGER_HOOK_TOKEN }}
+    token: ""
+  dags:
+    default: annotate_and_index
+    # KGX repos are deliberately not wired: knowledge_graph_build downloads
+    # tens of GB and bulk-loads, so it is triggered deliberately
+    map: {}

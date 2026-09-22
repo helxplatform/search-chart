@@ -15,7 +15,7 @@ type: application
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
 # Versions are expected to follow Semantic Versioning (https://semver.org/)
-version: 8.0.0
+version: 8.0.1
 engine: gotpl
 
 appVersion: "v3.0.0"
@@ -52,3 +52,10 @@ dependencies:
     condition: ui.enabled
     version: "^1.6.0"
     repository: "@helx-charts"
+  # Turns lakeFS commit/merge events on the source repositories into
+  # annotate_and_index runs. Pushed as an OCI chart by the listener repo;
+  # see DugLakefsEventListeners/.github/workflows/release.yaml.
+  - name: dug-lakefs-event-listeners
+    version: "0.1.0"
+    condition: dug-lakefs-event-listeners.enabled
+    repository: "oci://containers.renci.org/helxplatform"
