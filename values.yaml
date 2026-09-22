@@ -3,6 +3,7 @@ nameOverride: ""
 
 # @section -- Airflow
 airflow:
+
   # @section -- Airflow
   defaultAirflowRepository: airflow
   # @section -- Airflow
@@ -738,8 +739,21 @@ tranql:
   extraEnv:
     - name: WEB_PATH_PREFIX
       value: "/tranql"
+    - name: SKIP_REDIS_SCHEMA
+      value: "true"
   gunicorn:
-    workerCount: 1
+    # Bounded by this pod's cpu/memory limits below, NOT by how much
+    # concurrency the crawl would like. TranQL is CPU bound per request:
+    # SchemaFactory.get_instance() returns copy.deepcopy(_cached), and the
+    # query path calls it twice, so each query deep-copies the whole schema
+    # twice in Python with no help from redis. At 16 workers on cpu: 2 the
+    # pod pinned at 2005m with redis idle at 7m and a crawl made no
+    # progress for 30+ minutes. Each worker also builds and holds its own
+    # schema (_cached is per process), so memory scales with this too --
+    # 16 workers reached 1895Mi of the 2G limit.
+    # Raise this only together with the cpu/memory limits, and preferably
+    # after fixing the per-request deepcopy in tranql.
+    workerCount: 4
     workerTimeout: 1600
   resources:
     limits:
