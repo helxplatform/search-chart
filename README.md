@@ -6,7 +6,7 @@ A Helm chart for Helx Search components. This chart installs Dug, TranQL , Airfl
 
 For full architeture overview please refer to our documentation [here](https://dug.readthedocs.io/en/latest/architecture/roger/).
 
-![Version: 8.0.1](https://img.shields.io/badge/Version-8.0.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v3.0.0](https://img.shields.io/badge/AppVersion-v3.0.0-informational?style=flat-square) 
+![Version: 8.1.0](https://img.shields.io/badge/Version-8.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v3.1.2](https://img.shields.io/badge/AppVersion-v3.1.2-informational?style=flat-square) 
 
 > [!Note]
 > When installing you might notice a warning from bitnami postgres chart about the use of unknown postgres docker image, that warning is safe to ignore.
@@ -83,7 +83,7 @@ For full architeture overview please refer to our documentation [here](https://d
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| tranql | object | `{"enabled":true,"existingRedis":{"host":"","port":6379,"secret":"search-redis-secret","secretPasswordKey":"password"},"extraEnv":[{"name":"WEB_PATH_PREFIX","value":"/tranql"}],"gunicorn":{"workerCount":1,"workerTimeout":1600},"redis":{"enabled":false},"resources":{"limits":{"cpu":2,"memory":"2G"},"requests":{"cpu":"500m","memory":"2G"}},"webPrefix":"/tranql"}` | Tranql API configuration. Please refer to [https://github.com/helxplatform/tranql-chart/tree/main](https://github.com/helxplatform/tranql-chart/tree/main) for more details. |
+| tranql | object | `{"enabled":true,"existingRedis":{"host":"","port":6379,"secret":"search-redis-secret","secretPasswordKey":"password"},"extraEnv":[{"name":"WEB_PATH_PREFIX","value":"/tranql"},{"name":"SKIP_REDIS_SCHEMA","value":"true"}],"gunicorn":{"workerCount":4,"workerTimeout":1600},"redis":{"enabled":false},"resources":{"limits":{"cpu":2,"memory":"2G"},"requests":{"cpu":"500m","memory":"2G"}},"webPrefix":"/tranql"}` | Tranql API configuration. Please refer to [https://github.com/helxplatform/tranql-chart/tree/main](https://github.com/helxplatform/tranql-chart/tree/main) for more details. |
 
 ### Dug (Helx) UI
 
@@ -96,6 +96,7 @@ For full architeture overview please refer to our documentation [here](https://d
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | airflow.airflowVersion | string | `"3.1.1"` |  |
+| airflow.apiServer.apiServerConfig | string | `"from airflow.configuration import conf\nfrom flask_appbuilder.const import AUTH_DB\n# need to turn this back off once airflow-provides-fab is newer release\nAUTH_RATE_LIMITED = False\nAUTH_TYPE = AUTH_DB\nAUTH_USER_REGISTRATION = False\nAUTH_USER_REGISTRATION_ROLE = \"Public\"\nSQLALCHEMY_DATABASE_URI = conf.get(\"database\", \"SQL_ALCHEMY_CONN\")\n"` |  |
 | airflow.apiServer.resources.limits.cpu | int | `1` |  |
 | airflow.apiServer.resources.limits.memory | string | `"2Gi"` |  |
 | airflow.config.api.auth_backends | string | `"airflow.api.auth.backend.basic_auth"` |  |
@@ -165,8 +166,31 @@ For full architeture overview please refer to our documentation [here](https://d
 | airflow.webServer.defaultUser.password | string | `"admin"` |  |
 | airflow.webServer.defaultUser.role | string | `"Admin"` |  |
 | airflow.webServer.defaultUser.username | string | `"admin"` |  |
+| airflow.webServer.webServerConfig | string | `"from airflow.configuration import conf\nfrom flask_appbuilder.const import AUTH_DB\n# need to turn this back off once airflow-provides-fab is newer release\nAUTH_RATE_LIMITED = False\nAUTH_TYPE = AUTH_DB\nAUTH_USER_REGISTRATION = False\nAUTH_USER_REGISTRATION_ROLE = \"Public\"\nSQLALCHEMY_DATABASE_URI = conf.get(\"database\", \"SQL_ALCHEMY_CONN\")\n"` |  |
 | airflow.webserverSecretKey | string | `"your-secret-key-here"` |  |
 | airflow.workers.logGroomerSidecar.enabled | bool | `false` |  |
 | airflow.workers.replicas | int | `0` |  |
+| airflow.workers.securityContexts.pod.fsGroup | int | `0` |  |
+| airflow.workers.securityContexts.pod.fsGroupChangePolicy | string | `"OnRootMismatch"` |  |
+| airflow.workers.securityContexts.pod.runAsUser | int | `50000` |  |
+| duglakefslistener | object | `{"airflow_url":"http://airflow:airflow@127.0.0.1:8080/api/v1/","branch":"main","commands":{"invoke_airflow_with_diff_config":{"dags":[{"branch_name":"main","dag_id":"dag_test","last_commit_id":null,"repository_id":"bacpac-test"},{"branch_name":"main","dag_id":"annotate_and_index","last_commit_id":null,"repository_id":"bacpac"}]}},"enabled":true,"git_commit_id":null,"port":8001,"service":{"type":"ClusterIP"}}` | DugLakeFSListener config |
+| esdump | object | `{"image":{"repository":"containers.renci.org/helxplatform/esdump","tag":"0.3.0@sha256:765d4eae780c930ca50290a0618b3f0d5c449e89c05c827bb7053dddda676379"},"lakeFSKeyRefName":"search-data-config","lakefsBranch":"main","lakefsRepo":"esdump","persistence":{"size":"20Gi","storageClass":""}}` | Settings shared by the esdump export/import jobs |
+| esdump.image | object | `{"repository":"containers.renci.org/helxplatform/esdump","tag":"0.3.0@sha256:765d4eae780c930ca50290a0618b3f0d5c449e89c05c827bb7053dddda676379"}` | one image for both jobs (built from esdump/Dockerfile); it bundles esdump, a stdlib lakeFS client and dug's index_init.py so the jobs fetch nothing at runtime |
+| esdump.lakeFSKeyRefName | string | `"search-data-config"` | configmap with lakefs_host, lakefs_access_key_id, lakefs_secret_access_key |
+| esdump.lakefsBranch | string | `"main"` | branch the export job commits to, and the import job reads by default |
+| esdump.lakefsRepo | string | `"esdump"` | lakeFS repo holding the dump; it is always stored as esdump.tar.gz and versioned by lakeFS commits rather than by file name |
+| esdump.persistence | object | `{"size":"20Gi","storageClass":""}` | scratch PVC for the downloaded / unpacked index dump; must fit the dump plus its tar.gz |
+| esdump.persistence.storageClass | string | `""` | empty uses the cluster default storage class |
+| esdumpexportjob.Index | string | `"concepts_index variables_index studies_index sections_index kg_index"` | Space-separated indices to export; all of them go into one tar.gz. Must match the esdumpimportjob IN_*_index_name values, since the import creates those indices (with dug's mappings) before loading. |
+| esdumpexportjob.NewIndex | string | `""` | Optional rename on export, same order and count as Index. Empty keeps the names. |
+| esdumpexportjob.enabled | bool | `false` |  |
+| esdumpimportjob.IN_concepts_index_name | string | `"concepts_index"` |  |
+| esdumpimportjob.IN_delete_existing_indices | string | `"true"` |  |
+| esdumpimportjob.IN_kg_index_name | string | `"kg_index"` |  |
+| esdumpimportjob.IN_sections_index_name | string | `"sections_index"` |  |
+| esdumpimportjob.IN_studies_index_name | string | `"studies_index"` |  |
+| esdumpimportjob.IN_variables_index_name | string | `"variables_index"` |  |
+| esdumpimportjob.enabled | bool | `false` |  |
+| esdumpimportjob.lakefsRef | string | `""` | lakeFS commit id or tag to import; empty imports the head of esdump.lakefsBranch |
 | fullnameOverride | string | `""` |  |
 | nameOverride | string | `""` |  |
