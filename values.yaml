@@ -859,24 +859,31 @@ chat_2:
     type: ClusterIP
   apiPort: 8080
 
-# -- lakeFS -> Airflow event listener (subchart, OCI)
-# @section -- Event listener
-dug-lakefs-event-listeners:
-  # off by default: it needs the metadata DB secret wired below, and the
-  # lakeFS actions installed in the source repos, before it does anything
-  enabled: false
-  airflow:
-    metadataSecret:
-      # the same secret the scheduler uses; `airflow dags trigger` writes
-      # the DagRun through the DB, so this is what it authenticates with
-      name: "search-metadata"
-      key: connection
-  hook:
-    # must match ROGER_HOOK_TOKEN in the lakeFS server environment, which
-    # is where the action resolves {{ ENV.ROGER_HOOK_TOKEN }}
-    token: ""
-  dags:
-    default: annotate_and_index
-    # KGX repos are deliberately not wired: knowledge_graph_build downloads
-    # tens of GB and bulk-loads, so it is triggered deliberately
-    map: {}
+
+# -- DugLakeFSListener config
+duglakefslistener:
+  enabled: true
+  port: 8001
+  git_commit_id: null
+  branch: "main"
+  airflow_url: "http://airflow:airflow@127.0.0.1:8080/api/v1/"
+  service:
+    type: ClusterIP
+  commands:
+    invoke_airflow_with_diff_config:
+      {
+        "dags": [
+          {
+            "dag_id": "dag_test",
+            "repository_id": "bacpac-test",
+            "branch_name": "main",
+            "last_commit_id": null
+          },
+          {
+            "dag_id": "annotate_and_index",
+            "repository_id": "bacpac",
+            "branch_name": "main",
+            "last_commit_id": null
+          }
+        ]
+      }

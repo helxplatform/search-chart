@@ -55,12 +55,6 @@ For full architeture overview please refer to our documentation [here](https://d
 | config.lakefs.secret_key | string | `"secretkey"` | Lakefs secret key |
 | config.node_to_queries_enabled | string | `"false"` | Enables CDE extraction from Knowledge graph. |
 
-### Event listener
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| dug-lakefs-event-listeners | object | `{"airflow":{"metadataSecret":{"key":"connection","name":"search-metadata"}},"dags":{"default":"annotate_and_index","map":{}},"enabled":false,"hook":{"token":""}}` | lakeFS -> Airflow event listener (subchart, OCI) |
-
 ### Elasticsearch
 
 | Key | Type | Default | Description |
