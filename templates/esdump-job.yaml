@@ -1,5 +1,60 @@
-{{ if .Values.esdumpexportjob.enabled }}
+{{- define "search.esdump.lakefsEnv" -}}
+- name: LAKEFS_REPO
+  value: {{ .Values.esdump.lakefsRepo | quote }}
+- name: LAKECTL_SERVER_ENDPOINT_URL
+  valueFrom:
+    configMapKeyRef:
+      name: "{{ .Values.esdump.lakeFSKeyRefName }}"
+      key: lakefs_host
+- name: LAKECTL_CREDENTIALS_ACCESS_KEY_ID
+  valueFrom:
+    configMapKeyRef:
+      name: "{{ .Values.esdump.lakeFSKeyRefName }}"
+      key: lakefs_access_key_id
+- name: LAKECTL_CREDENTIALS_SECRET_ACCESS_KEY
+  valueFrom:
+    configMapKeyRef:
+      name: "{{ .Values.esdump.lakeFSKeyRefName }}"
+      key: lakefs_secret_access_key
+{{- end -}}
 
+{{- define "search.esdump.elasticEnv" -}}
+- name: ELASTIC_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: search-elastic-secret
+      key: password
+- name: ELASTIC_USERNAME
+  valueFrom:
+    secretKeyRef:
+      name: search-elastic-secret
+      key: username
+{{- end -}}
+
+{{- define "search.esdump.podSecurity" -}}
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+{{- end -}}
+
+{{- define "search.esdump.container" -}}
+image: "{{ .Values.esdump.image.repository }}:{{ .Values.esdump.image.tag }}"
+# everything the job writes goes to the PVC; ephemeral only holds the container log
+resources:
+  limits:
+    ephemeral-storage: 256Mi
+  requests:
+    ephemeral-storage: 64Mi
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+{{- end -}}
+
+{{ if .Values.esdumpexportjob.enabled }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -13,87 +68,52 @@ spec:
   template:
     spec:
       restartPolicy: Never
+      {{- include "search.esdump.podSecurity" . | nindent 6 }}
       containers:
         - name: esdump-export-job
-          resources:
-            limits:
-              ephemeral-storage: 4Gi
-            requests:
-              ephemeral-storage: 4Gi
-          image: alpine:latest
+          {{- include "search.esdump.container" . | nindent 10 }}
           command:
             - /bin/sh
             - -c
           args:
             - |
               set -e
-              apk add wget
-              apk add rclone
-              echo DOWNLOADING ElasticSearchDump
-              wget -O esdump.tar.xz {{.Values.esdumpexportjob.ElasticSearchDumpFile}}
-              echo UNPACKING
-              tar -xvf esdump.tar.xz --no-same-owner
+              # esdump exits 0 on an empty index list; don't upload an empty dump
+              [ -n "$INDEX" ] || { echo "esdumpexportjob.Index is empty"; exit 1; }
+              # the PVC outlives the pod, so clear the previous run's dump first
+              rm -rf /esdata/esdata /esdata/esdump.tar.gz
+              mkdir -p /esdata/esdata
+              esdump -action=export -user=$ELASTIC_USERNAME -password=$ELASTIC_PASSWORD -port=$ELASTIC_PORT -host=$ELASTIC_API_HOST -path="/esdata/esdata" -index="$INDEX" -newindex="$NEWINDEX"
+              ls -lha /esdata/esdata
+              tar -czf /esdata/esdump.tar.gz -C /esdata esdata
 
-              ./esdump -action=$ACTION -user=$ELASTIC_USERNAME -password=$ELASTIC_PASSWORD -port=$ELASTIC_PORT -host=$ELASTIC_API_HOST -path="/esdata"  -index="$INDEX" -newindex="$NEWINDEX"
-              ls -lha /esdata
-              timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
-              output_file="${timestamp}.tar.gz"
-              tar -czf "$output_file" ./esdata
-
-              echo UPLOADING to LAKEFS  //esdump/main/$output_file
-
-              rclone copy "$output_file" :s3://esdump/main/ \
-                --s3-provider="Other" \
-                --s3-endpoint="$LAKECTL_SERVER_ENDPOINT_URL" \
-                --s3-access-key-id=$LAKECTL_CREDENTIALS_ACCESS_KEY_ID \
-                --s3-secret-access-key=$LAKECTL_CREDENTIALS_SECRET_ACCESS_KEY
+              echo UPLOADING to lakefs://$LAKEFS_REPO/$LAKEFS_BRANCH/esdump.tar.gz
+              python /opt/esdump/lakefs.py upload "$LAKEFS_REPO" "$LAKEFS_BRANCH" esdump.tar.gz /esdata/esdump.tar.gz
+              # the upload only stages the object; the commit is what versions it
+              python /opt/esdump/lakefs.py commit "$LAKEFS_REPO" "$LAKEFS_BRANCH" "esdump export $(date -u +%Y-%m-%dT%H:%M:%SZ)" "indices=$INDEX"
               echo UPLOADING to LAKEFS COMPLETE
-
           volumeMounts:
             - name: data-volume
               mountPath: /esdata
           env:
-            - name: ELASTIC_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.esdumpexportjob.ElasticKeyRefName }}
-                  key: password
-            - name: ELASTIC_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.esdumpexportjob.ElasticKeyRefName }}
-                  key: username
+            {{- include "search.esdump.elasticEnv" . | nindent 12 }}
             - name: ELASTIC_PORT
-              value: {{ .Values.esdumpexportjob.ElasticPort  | quote}}
+              value: {{ .Values.elasticsearch.httpPort | default 9200 | quote }}
             - name: ELASTIC_API_HOST
-              value: {{ .Values.esdumpexportjob.ElasticHost  | quote}}
-            - name: ACTION
-              value: "export"
+              value: {{ include "search.elasticsearch.masterService" . | quote }}
             - name: INDEX
-              value: {{ .Values.esdumpexportjob.Index  | quote}}
+              value: {{ .Values.esdumpexportjob.Index | quote }}
             - name: NEWINDEX
-              value: {{ .Values.esdumpexportjob.NewIndex  | quote}}
-            - name: LAKECTL_SERVER_ENDPOINT_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: "{{ .Values.esdumpexportjob.LakeFSKeyRefName }}"
-                  key: lakefs_host
-            - name: LAKECTL_CREDENTIALS_ACCESS_KEY_ID
-              valueFrom:
-                configMapKeyRef:
-                  name: "{{ .Values.esdumpexportjob.LakeFSKeyRefName }}"
-                  key: lakefs_access_key_id
-            - name: LAKECTL_CREDENTIALS_SECRET_ACCESS_KEY
-              valueFrom:
-                configMapKeyRef:
-                  name: "{{ .Values.esdumpexportjob.LakeFSKeyRefName }}"
-                  key: lakefs_secret_access_key
+              value: {{ .Values.esdumpexportjob.NewIndex | quote }}
+            - name: LAKEFS_BRANCH
+              value: {{ .Values.esdump.lakefsBranch | quote }}
+            {{- include "search.esdump.lakefsEnv" . | nindent 12 }}
       volumes:
         - name: data-volume
-          emptyDir:
-            sizeLimit: "4096Mi"
-
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-esdump-data
 {{ end }}
+---
 {{ if .Values.esdumpimportjob.enabled }}
 apiVersion: batch/v1
 kind: Job
@@ -102,144 +122,65 @@ metadata:
   labels:
     app: search
 spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 7200
   template:
     spec:
       restartPolicy: Never
+      {{- include "search.esdump.podSecurity" . | nindent 6 }}
       initContainers:
+        # creates the indices with dug's mappings; the dump only carries documents
         - name: init-es-index
-          image: python:3.14-alpine
-          command:
-            - /bin/sh
-            - -c
-          args:
-            - |
-              set -e
-              apk add wget
-              echo DOWNLOADING Index_init
-              wget -O index_init.py https://raw.githubusercontent.com/helxplatform/dug/refs/heads/$DUG_BRANCH_NAME/src/dug/core/index_init.py
-              wget -O requirements_indexinit.txt https://github.com/helxplatform/dug/raw/refs/heads/$DUG_BRANCH_NAME/requirements_indexinit.txt
-              ls -lha
-              echo INSTALLING REQUIREMENTS
-              pip install -r requirements_indexinit.txt
-              echo INITIALIZING INDEX
-              python index_init.py
-              echo COMPLETE
+          {{- include "search.esdump.container" . | nindent 10 }}
+          command: ["python", "/opt/esdump/index_init.py"]
           env:
-            - name: ELASTIC_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.esdumpimportjob.ElasticKeyRefName }}
-                  key: password
-            - name: ELASTIC_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.esdumpimportjob.ElasticKeyRefName }}
-                  key: username
+            {{- include "search.esdump.elasticEnv" . | nindent 12 }}
             - name: ELASTIC_API_HOST
-              value: {{ .Values.esdumpimportjob.ElasticHostFull  | quote}}
-            - name: DUG_BRANCH_NAME
-              value:  {{ .Values.esdumpimportjob.DUG_BRANCH_NAME  | quote}}
+              value: {{ printf "%s://%s:%v" .Values.api.elasticScheme (include "search.elasticsearch.masterService" .) (.Values.elasticsearch.httpPort | default 9200) | quote }}
             - name: IN_delete_existing_indices
-              value:  {{ .Values.esdumpimportjob.IN_delete_existing_indices  | quote}}
+              value: {{ .Values.esdumpimportjob.IN_delete_existing_indices | quote }}
             - name: IN_studies_index_name
-              value:  {{ .Values.esdumpimportjob.IN_studies_index_name  | quote}}
+              value: {{ .Values.esdumpimportjob.IN_studies_index_name | quote }}
             - name: IN_variables_index_name
-              value:  {{ .Values.esdumpimportjob.IN_variables_index_name  | quote}}
+              value: {{ .Values.esdumpimportjob.IN_variables_index_name | quote }}
             - name: IN_sections_index_name
-              value:  {{ .Values.esdumpimportjob.IN_sections_index_name  | quote}}
+              value: {{ .Values.esdumpimportjob.IN_sections_index_name | quote }}
             - name: IN_concepts_index_name
-              value:  {{ .Values.esdumpimportjob.IN_concepts_index_name  | quote}}
+              value: {{ .Values.esdumpimportjob.IN_concepts_index_name | quote }}
             - name: IN_kg_index_name
-              value: {{ .Values.esdumpimportjob.IN_kg_index_name  | quote}}
+              value: {{ .Values.esdumpimportjob.IN_kg_index_name | quote }}
       containers:
         - name: elastic-import-job
-          resources:
-            limits:
-              ephemeral-storage: 4Gi
-            requests:
-              ephemeral-storage: 4Gi
-          image: alpine:latest
+          {{- include "search.esdump.container" . | nindent 10 }}
           command:
             - /bin/sh
             - -c
           args:
             - |
               set -e
-              apk add wget
-              apk add rclone
-              echo DOWNLOADING ElasticSearchDump
-              wget -O esdump.tar.xz {{.Values.esdumpimportjob.ElasticSearchDumpFile}}
-              echo UNPACKING
-              tar -xvf esdump.tar.xz --no-same-owner
-
+              # the PVC outlives the pod, so clear the previous run's files first
+              rm -rf /esdata/extracted /esdata/esdump.tar.gz
               mkdir /esdata/extracted
 
-              echo "IMPORT"
-              echo DOWNLOADING from LAKEFS "$FILE_TO_IMPORT"
-
-              rclone copyto :s3://esdump/main/"$FILE_TO_IMPORT" /esdata/"$FILE_TO_IMPORT" \
-                --s3-provider="Other" \
-                --s3-endpoint="$LAKECTL_SERVER_ENDPOINT_URL" \
-                --s3-access-key-id=$LAKECTL_CREDENTIALS_ACCESS_KEY_ID \
-                --s3-secret-access-key=$LAKECTL_CREDENTIALS_SECRET_ACCESS_KEY
-              ls -lha /esdata/
-              echo ----------------
-              if [ -f "/esdata/$FILE_TO_IMPORT" ]; then
-                echo "$FILE exists."
-              else
-                echo "$FILE does not exist."
-                exit 1
-              fi
-              echo COMPLETE
-              echo UNPACKING
-              tar -xzf /esdata/$FILE_TO_IMPORT -C /esdata/extracted
-              echo ----------------
+              echo DOWNLOADING lakefs://$LAKEFS_REPO/$LAKEFS_REF/esdump.tar.gz
+              python /opt/esdump/lakefs.py download "$LAKEFS_REPO" "$LAKEFS_REF" esdump.tar.gz /esdata/esdump.tar.gz
+              tar -xzf /esdata/esdump.tar.gz -C /esdata/extracted
               ls -lha /esdata/extracted/esdata
-              ./esdump -action=$ACTION -user=$ELASTIC_USERNAME -password=$ELASTIC_PASSWORD -port=$ELASTIC_PORT -host=$ELASTIC_API_HOST -path="/esdata/extracted/esdata"
-
+              esdump -action=import -user=$ELASTIC_USERNAME -password=$ELASTIC_PASSWORD -port=$ELASTIC_PORT -host=$ELASTIC_API_HOST -path="/esdata/extracted/esdata"
           volumeMounts:
             - name: data-volume
               mountPath: /esdata
           env:
-            - name: ELASTIC_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.esdumpimportjob.ElasticKeyRefName }}
-                  key: password
-            - name: ELASTIC_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.esdumpimportjob.ElasticKeyRefName }}
-                  key: username
+            {{- include "search.esdump.elasticEnv" . | nindent 12 }}
             - name: ELASTIC_PORT
-              value: {{ .Values.esdumpimportjob.ElasticPort  | quote}}
+              value: {{ .Values.elasticsearch.httpPort | default 9200 | quote }}
             - name: ELASTIC_API_HOST
-              value: {{ .Values.esdumpimportjob.ElasticHost  | quote}}
-            - name: ACTION
-              value: "import"
-            - name: FILE_TO_IMPORT
-              value: {{ .Values.esdumpimportjob.FileToImport  | quote}}
-            - name: LAKECTL_SERVER_ENDPOINT_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: "{{ .Values.esdumpexportjob.LakeFSKeyRefName }}"
-                  key: lakefs_host
-            - name: LAKECTL_CREDENTIALS_ACCESS_KEY_ID
-              valueFrom:
-                configMapKeyRef:
-                  name: "{{ .Values.esdumpexportjob.LakeFSKeyRefName }}"
-                  key: lakefs_access_key_id
-            - name: LAKECTL_CREDENTIALS_SECRET_ACCESS_KEY
-              valueFrom:
-                configMapKeyRef:
-                  name: "{{ .Values.esdumpexportjob.LakeFSKeyRefName }}"
-                  key: lakefs_secret_access_key
-
+              value: {{ include "search.elasticsearch.masterService" . | quote }}
+            - name: LAKEFS_REF
+              value: {{ .Values.esdumpimportjob.lakefsRef | default .Values.esdump.lakefsBranch | quote }}
+            {{- include "search.esdump.lakefsEnv" . | nindent 12 }}
       volumes:
         - name: data-volume
-          emptyDir: {}
-
-  backoffLimit: 0
-  ttlSecondsAfterFinished: 7200
-
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-esdump-data
 {{ end }}

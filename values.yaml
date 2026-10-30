@@ -3,6 +3,7 @@ nameOverride: ""
 
 # @section -- Airflow
 airflow:
+
   # @section -- Airflow
   defaultAirflowRepository: airflow
   # @section -- Airflow
@@ -214,8 +215,12 @@ airflow:
           key: tranql_endpoint
     - name: AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS
       value: "FALSE"
+    # DEBUG puts every third-party per-request log line into the task
+    # log. requests_cache alone emits 5 lines per HTTP call, which took
+    # one annotate task to a 2.9 GB log -- large enough to evict the
+    # api-server (ephemeral-storage 750Mi) when opened in the UI.
     - name: "AIRFLOW__LOGGING__LOGGING_LEVEL"
-      value: "DEBUG"
+      value: "INFO"
     - name: "AIRFLOW__LOGGING__BASE_LOG_FOLDER"
       value: "/opt/airflow/share/logs"
     - name: "AIRFLOW__WEBSERVER__APPLICATION_ROOT"
@@ -271,6 +276,16 @@ airflow:
     replicas: 0
     logGroomerSidecar:
       enabled: false
+    # Setting securityContexts.pod REPLACES the chart's default
+    # (runAsUser: uid, fsGroup: gid), so both are restated here.
+    # Without OnRootMismatch kubelet recursively chowns the whole
+    # search-data Filestore (BASIC_HDD NFS) on every worker pod mount,
+    # ~5k files/min -- pods sat in Init for many minutes.
+    securityContexts:
+      pod:
+        runAsUser: 50000
+        fsGroup: 0
+        fsGroupChangePolicy: OnRootMismatch
   # @section -- Airflow
   config:
     api:
@@ -279,6 +294,24 @@ airflow:
     # Ensure these are set
     core:
       internal_api_secret_key: "{{ .Values.webserverSecretKey }}"
+      # Worker pods are memory-hungry (see workers.resources) and the
+      # namespace ResourceQuota rejects pod creation once the sum of limits
+      # is reached. Keep the ceiling under that quota so tasks queue inside
+      # Airflow rather than being submitted and bounced.
+      parallelism: 12
+    workers:
+      # A task supervisor kills its own task after this many consecutive
+      # heartbeat failures. At the default of 3, with min_heartbeat_interval
+      # 5s, ~15-30s of api-server unavailability destroys a task that has
+      # been running for a day -- observed in heal-dev, where the api-server
+      # is evicted periodically and a 21h annotate task died with it.
+      max_failed_heartbeats: 20
+    kubernetes_executor:
+      # On a 403 "exceeded quota" from the Kube API, requeue the task rather
+      # than failing it. The default of 0 gives up on the first rejection,
+      # which marks tasks failed for what is only a transient capacity
+      # problem. -1 waits indefinitely for capacity to free up.
+      task_publish_max_retries: -1
   # @section -- Airflow
   webserverSecretKey: "your-secret-key-here"
   # @section -- Airflow
@@ -292,7 +325,31 @@ airflow:
         memory: 2Gi
     logGroomerSidecar:
       # Whether to deploy the Airflow scheduler log groomer sidecar.
-      enabled: false
+      # Task logs live on the shared PVC and nothing else deletes
+      # them; a single long annotate task can write hundreds of MB.
+      # The groomer is retention, not rotation -- Airflow writes one
+      # file per task try and never rolls it, so keeping each file
+      # small is the logging level's job, not this.
+      enabled: true
+      retentionDays: 7
+      # The upstream sidecar runs /clean-logs, which ships in the
+      # apache/airflow image but not in helxplatform/roger -- it
+      # crashlooped with "bash: /clean-logs: No such file or
+      # directory". Same job, inline.
+      command:
+        - bash
+        - -c
+        - |
+          RETENTION="${AIRFLOW__LOG_RETENTION_DAYS:-7}"
+          DIR="${AIRFLOW__LOGGING__BASE_LOG_FOLDER:-/opt/airflow/logs}"
+          while true; do
+            find "$DIR" -type f -name "*.log" -mtime +"$RETENTION" -delete
+            find "$DIR" -mindepth 1 -type d -empty -delete
+            sleep 900
+          done
+      # the subchart otherwise appends its default args
+      # (bash /clean-logs) onto the command above
+      args: []
     startupProbe:
       command:
         - bash
@@ -307,12 +364,30 @@ airflow:
           airflow jobs check --job-type SchedulerJob --hostname "$(hostname)"
   # @section -- Airflow
   apiServer:
+    apiServerConfig: |
+      from airflow.configuration import conf
+      from flask_appbuilder.const import AUTH_DB
+      # need to turn this back off once airflow-provides-fab is newer release
+      AUTH_RATE_LIMITED = False
+      AUTH_TYPE = AUTH_DB
+      AUTH_USER_REGISTRATION = False
+      AUTH_USER_REGISTRATION_ROLE = "Public"
+      SQLALCHEMY_DATABASE_URI = conf.get("database", "SQL_ALCHEMY_CONN")
     resources:
       limits:
         cpu: 1
         memory: 2Gi
   # @section -- Airflow
   webServer:
+    webServerConfig: |
+      from airflow.configuration import conf
+      from flask_appbuilder.const import AUTH_DB
+      # need to turn this back off once airflow-provides-fab is newer release
+      AUTH_RATE_LIMITED = False
+      AUTH_TYPE = AUTH_DB
+      AUTH_USER_REGISTRATION = False
+      AUTH_USER_REGISTRATION_ROLE = "Public"
+      SQLALCHEMY_DATABASE_URI = conf.get("database", "SQL_ALCHEMY_CONN")
     defaultUser:
       enabled: true
       role: Admin
@@ -565,10 +640,24 @@ redis:
   serviceAccount:
     create: false
   commonConfiguration: |-
-    # Enable AOF https://redis.io/topics/persistence#append-only-file
+    # No AOF; RDB snapshots only (the graph is rebuildable from the bulk
+    # load csvs in lakefs, so this is a convenience, not the source of truth)
     appendonly no
-    # Disable RDB persistence, AOF persistence already enabled.
     save 300 100000
+    # A failed snapshot must not halt the graph. The RDB target is
+    # master.persistence.size and a full graph does not necessarily
+    # compress under it; with the default `yes`, one failed bgsave makes
+    # redis refuse all writes and a bulk load dies with an error that
+    # looks nothing like a disk problem.
+    stop-writes-on-bgsave-error no
+    # Cap below the pod memory limit so redis evicts rather than being
+    # OOMKilled. volatile-lru only evicts keys carrying a TTL: the dug
+    # annotation response cache sets one (annotation.http_cache_expire_seconds),
+    # the falkordb graph keys do not, so the cache is spent first and the
+    # graph is never touched. Leave headroom under the limit for
+    # fragmentation and bgsave fork copy-on-write.
+    maxmemory 55gb
+    maxmemory-policy volatile-lru
   auth:
     existingSecret: search-redis-secret
     existingSecretPasswordKey: password
@@ -581,14 +670,14 @@ redis:
   usePassword: true
   master:
     persistence:
-      size: 50Gi
+      size: 60Gi
     resources:
       limits:
         cpu: 2
-        memory: 45Gi
+        memory: 60Gi
       requests:
         cpu: 1
-        memory: 45Gi
+        memory: 10Gi
     command: ""
     readinessProbe:
       enabled: true
@@ -678,8 +767,21 @@ tranql:
   extraEnv:
     - name: WEB_PATH_PREFIX
       value: "/tranql"
+    - name: SKIP_REDIS_SCHEMA
+      value: "true"
   gunicorn:
-    workerCount: 1
+    # Bounded by this pod's cpu/memory limits below, NOT by how much
+    # concurrency the crawl would like. TranQL is CPU bound per request:
+    # SchemaFactory.get_instance() returns copy.deepcopy(_cached), and the
+    # query path calls it twice, so each query deep-copies the whole schema
+    # twice in Python with no help from redis. At 16 workers on cpu: 2 the
+    # pod pinned at 2005m with redis idle at 7m and a crawl made no
+    # progress for 30+ minutes. Each worker also builds and holds its own
+    # schema (_cached is per process), so memory scales with this too --
+    # 16 workers reached 1895Mi of the 2G limit.
+    # Raise this only together with the cpu/memory limits, and preferably
+    # after fixing the per-request deepcopy in tranql.
+    workerCount: 4
     workerTimeout: 1600
   resources:
     limits:
@@ -786,42 +888,45 @@ duglakefslistener:
         ]
       }
 
+# -- Settings shared by the esdump export/import jobs
+esdump:
+  # -- one image for both jobs (built from esdump/Dockerfile); it bundles esdump,
+  # a stdlib lakeFS client and dug's index_init.py so the jobs fetch nothing at runtime
+  image:
+    repository: containers.renci.org/helxplatform/esdump
+    # tag@digest so a re-pushed tag cannot change what runs
+    tag: "0.3.0@sha256:765d4eae780c930ca50290a0618b3f0d5c449e89c05c827bb7053dddda676379"
+  # -- configmap with lakefs_host, lakefs_access_key_id, lakefs_secret_access_key
+  lakeFSKeyRefName: "search-data-config"
+  # -- lakeFS repo holding the dump; it is always stored as esdump.tar.gz and
+  # versioned by lakeFS commits rather than by file name
+  lakefsRepo: "esdump"
+  # -- branch the export job commits to, and the import job reads by default
+  lakefsBranch: "main"
+  # -- scratch PVC for the downloaded / unpacked index dump; must fit the dump plus its tar.gz
+  persistence:
+    size: 20Gi
+    # -- empty uses the cluster default storage class
+    storageClass: ""
 
 esdumpexportjob:
-  enabled: "false"
-  ElasticSearchDumpFile: "https://github.com/RENCI/ElasticSearchDump/releases/download/2/esdump.tar.xz"
-  ElasticPort: "9200"
-  ElasticHost: "elasticsearch-master"
+  enabled: false
 
-  # -- REQUIRED. Indexes that need to be exported,
-  # e. g. Index: "variables_index concepts_index studies_index sections_index kg_index"
-  Index: ""
-  # -- REQUIRED. Names of the indexes that will be used for import. Keep order as is in Index value!
-  # e. g. NewIndex: "test_variables_index test_concepts_index test_studies_index test_sections_index test_kg_index"
-  # or NewIndex: "variables_index concepts_index studies_index sections_index kg_index"
-  # to keep same names
+  # -- Space-separated indices to export; all of them go into one tar.gz.
+  # Must match the esdumpimportjob IN_*_index_name values, since the
+  # import creates those indices (with dug's mappings) before loading.
+  Index: "concepts_index variables_index studies_index sections_index kg_index"
+  # -- Optional rename on export, same order and count as Index. Empty keeps the names.
   NewIndex: ""
 
-  ReleaseName: "search"
-  ElasticKeyRefName: "search-elastic-secret"
-  LakeFSKeyRefName: "search-data-config"
-
-
 esdumpimportjob:
-  enabled: "false"
-  ElasticSearchDumpFile: "https://github.com/RENCI/ElasticSearchDump/releases/download/2/esdump.tar.xz"
-  ElasticHostFull: "https://elasticsearch-master:9200"
-  ElasticHost: "elasticsearch-master"
-  ElasticPort: "9200"
-  ReleaseName: "search"
-  FileToImport: "2026-08-21_18-32-26.tar.gz"
-  ElasticKeyRefName: "search-elastic-secret"
-  LakeFSKeyRefName: "search-data-config"
-  DUG_BRANCH_NAME: "develop"
+  enabled: false
+  # -- lakeFS commit id or tag to import; empty imports the head of esdump.lakefsBranch
+  lakefsRef: ""
   IN_delete_existing_indices: "true"
-  IN_studies_index_name: "test_studies_index"
-  IN_variables_index_name: "test_variables_index"
-  IN_sections_index_name: "test_sections_index"
-  IN_concepts_index_name: "test_concepts_index"
-  IN_kg_index_name: "test_kg_index"
+  IN_studies_index_name: "studies_index"
+  IN_variables_index_name: "variables_index"
+  IN_sections_index_name: "sections_index"
+  IN_concepts_index_name: "concepts_index"
+  IN_kg_index_name: "kg_index"
 
