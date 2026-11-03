@@ -21,7 +21,7 @@ spec:
       {{- end }}
 {{ end }}
 ---
-{{- if not (lookup "v1" "PersistentVolumeClaim" .Release.Namespace ( "search-airflow-logs" )) }}
+{{- if and .Values.airflow.enabled (not (lookup "v1" "PersistentVolumeClaim" .Release.Namespace ( "search-airflow-logs" ))) }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
