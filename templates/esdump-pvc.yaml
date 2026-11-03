@@ -1,0 +1,15 @@
+{{- if or .Values.esdumpexportjob.enabled .Values.esdumpimportjob.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-esdump-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- with .Values.esdump.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.esdump.persistence.size }}
+{{- end }}

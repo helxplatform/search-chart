@@ -887,3 +887,46 @@ duglakefslistener:
           }
         ]
       }
+
+# -- Settings shared by the esdump export/import jobs
+esdump:
+  # -- one image for both jobs (built from esdump/Dockerfile); it bundles esdump,
+  # a stdlib lakeFS client and dug's index_init.py so the jobs fetch nothing at runtime
+  image:
+    repository: containers.renci.org/helxplatform/esdump
+    # tag@digest so a re-pushed tag cannot change what runs
+    tag: "0.3.0@sha256:765d4eae780c930ca50290a0618b3f0d5c449e89c05c827bb7053dddda676379"
+  # -- configmap with lakefs_host, lakefs_access_key_id, lakefs_secret_access_key
+  lakeFSKeyRefName: "search-data-config"
+  # -- lakeFS repo holding the dump; it is always stored as esdump.tar.gz and
+  # versioned by lakeFS commits rather than by file name
+  lakefsRepo: "esdump"
+  # -- branch the export job commits to, and the import job reads by default
+  lakefsBranch: "main"
+  # -- scratch PVC for the downloaded / unpacked index dump; must fit the dump plus its tar.gz
+  persistence:
+    size: 20Gi
+    # -- empty uses the cluster default storage class
+    storageClass: ""
+
+esdumpexportjob:
+  enabled: false
+
+  # -- Space-separated indices to export; all of them go into one tar.gz.
+  # Must match the esdumpimportjob IN_*_index_name values, since the
+  # import creates those indices (with dug's mappings) before loading.
+  Index: "concepts_index variables_index studies_index sections_index kg_index"
+  # -- Optional rename on export, same order and count as Index. Empty keeps the names.
+  NewIndex: ""
+
+esdumpimportjob:
+  enabled: false
+  # -- lakeFS commit id or tag to import; empty imports the head of esdump.lakefsBranch
+  lakefsRef: ""
+  IN_delete_existing_indices: "true"
+  IN_studies_index_name: "studies_index"
+  IN_variables_index_name: "variables_index"
+  IN_sections_index_name: "sections_index"
+  IN_concepts_index_name: "concepts_index"
+  IN_kg_index_name: "kg_index"
+
