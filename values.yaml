@@ -43,13 +43,13 @@ airflow:
           key: lakefs_host
     - name: ROGER_LAKEFS__CONFIG_ACCESS__KEY__ID
       valueFrom:
-        configMapKeyRef:
-          name: "{{ .Release.Name }}-data-config"
+        secretKeyRef:
+          name: "{{ .Release.Name }}-data-secret"
           key: lakefs_access_key_id
     - name: ROGER_LAKEFS__CONFIG_SECRET__ACCESS__KEY
       valueFrom:
-        configMapKeyRef:
-          name: "{{ .Release.Name }}-data-config"
+        secretKeyRef:
+          name: "{{ .Release.Name }}-data-secret"
           key: lakefs_secret_access_key
     - name: ROGER_LAKEFS__CONFIG_BRANCH
       valueFrom:
@@ -113,8 +113,8 @@ airflow:
           key: annotator_sapbert_bagel_llm_organization
     - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_BAGEL_LLM__ARGS_ACCESS__KEY
       valueFrom:
-        configMapKeyRef:
-          name: "{{ .Release.Name }}-data-config"
+        secretKeyRef:
+          name: "{{ .Release.Name }}-data-secret"
           key: annotator_sapbert_bagel_llm_access_key
     - name: ROGER_ANNOTATION_ANNOTATOR__ARGS_SAPBERT_SCORE__THRESHOLD
       valueFrom:
@@ -173,8 +173,8 @@ airflow:
           key: port
     - name: ROGER_S3_ACCESS__KEY
       valueFrom:
-        configMapKeyRef:
-          name: "{{ .Release.Name }}-data-config"
+        secretKeyRef:
+          name: "{{ .Release.Name }}-data-secret"
           key: s3_access_key
     - name: ROGER_S3_BUCKET
       valueFrom:
@@ -188,8 +188,8 @@ airflow:
           key: s3_host
     - name: ROGER_S3_SECRET__KEY
       valueFrom:
-        configMapKeyRef:
-          name: "{{ .Release.Name }}-data-config"
+        secretKeyRef:
+          name: "{{ .Release.Name }}-data-secret"
           key: s3_secret_key
     - name: ROGER_KGX_DATA__SETS
       valueFrom:
@@ -293,7 +293,6 @@ airflow:
       auth_backends: airflow.api.auth.backend.basic_auth
     # Ensure these are set
     core:
-      internal_api_secret_key: "{{ .Values.webserverSecretKey }}"
       # Worker pods are memory-hungry (see workers.resources) and the
       # namespace ResourceQuota rejects pod creation once the sum of limits
       # is reached. Keep the ceiling under that quota so tasks queue inside
@@ -312,8 +311,6 @@ airflow:
       # which marks tasks failed for what is only a transient capacity
       # problem. -1 waits indefinitely for capacity to free up.
       task_publish_max_retries: -1
-  # @section -- Airflow
-  webserverSecretKey: "your-secret-key-here"
   # @section -- Airflow
   scheduler:
     env:
@@ -896,8 +893,10 @@ esdump:
     repository: containers.renci.org/helxplatform/esdump
     # tag@digest so a re-pushed tag cannot change what runs
     tag: "0.3.0@sha256:765d4eae780c930ca50290a0618b3f0d5c449e89c05c827bb7053dddda676379"
-  # -- configmap with lakefs_host, lakefs_access_key_id, lakefs_secret_access_key
+  # -- configmap with lakefs_host
   lakeFSKeyRefName: "search-data-config"
+  # -- secret with lakefs_access_key_id, lakefs_secret_access_key
+  lakeFSSecretRefName: "search-data-secret"
   # -- lakeFS repo holding the dump; it is always stored as esdump.tar.gz and
   # versioned by lakeFS commits rather than by file name
   lakefsRepo: "esdump"

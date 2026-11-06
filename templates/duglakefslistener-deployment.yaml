@@ -31,7 +31,10 @@ spec:
           image: python:3-alpine
           env:
             - name: AIRFLOW_URL
-              value: {{ .Values.duglakefslistener.airflow_url }}
+              valueFrom:
+                secretKeyRef:
+                  name: search-data-secret
+                  key: airflow_url
           command:
             - sh
             - -c
