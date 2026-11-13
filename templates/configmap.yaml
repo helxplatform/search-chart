@@ -45,12 +45,9 @@ data:
   annotator_sapbert_bagel_prompt: {{ .Values.config.annotation.sapbert.bagel.prompt | quote }}
   annotator_sapbert_bagel_llm_model_name: {{ .Values.config.annotation.sapbert.bagel.llm_args.llm_model_name | quote }}
   annotator_sapbert_bagel_llm_organization: {{ .Values.config.annotation.sapbert.bagel.llm_args.organization | quote }}
-  annotator_sapbert_bagel_llm_access_key: {{ .Values.config.annotation.sapbert.bagel.llm_args.access_key | quote }}
   annotator_sapbert_score_threshold: {{ .Values.config.annotation.sapbert.score_threshold | quote }}
-  s3_access_key: {{ .Values.config.s3.access_key }}
   s3_bucket: {{ .Values.config.s3.bucket }}
   s3_host: {{ .Values.config.s3.host }}
-  s3_secret_key: {{ .Values.config.s3.secret_key }}
   {{- if .Values.tranql.enabled }}
   tranql_endpoint: "http://{{ template "search.tranql.fullname" . }}:{{ .Values.tranql.port }}{{ .Values.tranql.webPrefix }}/tranql/query?dynamic_id_resolution=true&asynchronous=false"
   {{- else }}
@@ -59,8 +56,6 @@ data:
   node_to_queries_enabled: "{{ .Values.config.node_to_queries_enabled }}"
   element_mappings: "{{ .Values.config.element_mappings }}"
   lakefs_enabled: {{ .Values.config.lakefs.enabled | quote }}
-  lakefs_access_key_id: {{ .Values.config.lakefs.access_key }}
-  lakefs_secret_access_key: {{ .Values.config.lakefs.secret_key }}
   lakefs_host: {{ .Values.config.lakefs.host }}
   lakefs_branch: {{ .Values.config.lakefs.branch }}
   lakefs_repo: {{ .Values.config.lakefs.repo }}

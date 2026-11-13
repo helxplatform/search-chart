@@ -8,13 +8,13 @@
       key: lakefs_host
 - name: LAKECTL_CREDENTIALS_ACCESS_KEY_ID
   valueFrom:
-    configMapKeyRef:
-      name: "{{ .Values.esdump.lakeFSKeyRefName }}"
+    secretKeyRef:
+      name: "{{ .Values.esdump.lakeFSSecretRefName }}"
       key: lakefs_access_key_id
 - name: LAKECTL_CREDENTIALS_SECRET_ACCESS_KEY
   valueFrom:
-    configMapKeyRef:
-      name: "{{ .Values.esdump.lakeFSKeyRefName }}"
+    secretKeyRef:
+      name: "{{ .Values.esdump.lakeFSSecretRefName }}"
       key: lakefs_secret_access_key
 {{- end -}}
 
