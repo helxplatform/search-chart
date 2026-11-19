@@ -15,7 +15,7 @@ type: application
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
 # Versions are expected to follow Semantic Versioning (https://semver.org/)
-version: 8.2.0
+version: 8.3.0
 engine: gotpl
 
 appVersion: "v3.1.2"
@@ -52,3 +52,8 @@ dependencies:
     condition: ui.enabled
     version: "^1.6.0"
     repository: "@helx-charts"
+  - name: dug-lakefs-event-listeners-chart
+    alias: duglakefslistener
+    version: "0.1.5"
+    condition: duglakefslistener.enabled
+    repository: "oci://containers.renci.org/helxplatform"

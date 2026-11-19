@@ -6,7 +6,7 @@ A Helm chart for Helx Search components. This chart installs Dug, TranQL , Airfl
 
 For full architeture overview please refer to our documentation [here](https://dug.readthedocs.io/en/latest/architecture/roger/).
 
-![Version: 8.2.0](https://img.shields.io/badge/Version-8.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v3.1.2](https://img.shields.io/badge/AppVersion-v3.1.2-informational?style=flat-square) 
+![Version: 8.3.0](https://img.shields.io/badge/Version-8.3.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v3.1.2](https://img.shields.io/badge/AppVersion-v3.1.2-informational?style=flat-square) 
 
 > [!Note]
 > When installing you might notice a warning from bitnami postgres chart about the use of unknown postgres docker image, that warning is safe to ignore.
@@ -54,6 +54,12 @@ For full architeture overview please refer to our documentation [here](https://d
 | config.lakefs.repo | string | `"test-repo"` | Lakefs repo to write outputs to |
 | config.lakefs.secret_key | string | `"secretkey"` | Lakefs secret key |
 | config.node_to_queries_enabled | string | `"false"` | Enables CDE extraction from Knowledge graph. |
+
+### lakeFS Event Listener
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| duglakefslistener | object | `{"Airflow":{"auth":"http://{{ .Release.Name }}-api-server:8080/auth/token","secret":{"name":"search-data-secret","passwordKey":"airflow_password","userKey":"airflow_user"},"url":"http://{{ .Release.Name }}-api-server:8080/api/v2/"},"enabled":true}` | lakeFS -> Airflow relay ([dug-lakefs-event-listeners-chart](https://github.com/helxplatform/DugLakefsEventListeners)). A lakeFS webhook POSTing to http://<release>-duglakefseventlisteners-service.<namespace>.svc.cluster.local/relay?dag_id=<dag> triggers that DAG with the event's repository_id, branch and commit_id as conf. |
 
 ### Elasticsearch
 
@@ -171,7 +177,6 @@ For full architeture overview please refer to our documentation [here](https://d
 | airflow.workers.securityContexts.pod.fsGroup | int | `0` |  |
 | airflow.workers.securityContexts.pod.fsGroupChangePolicy | string | `"OnRootMismatch"` |  |
 | airflow.workers.securityContexts.pod.runAsUser | int | `50000` |  |
-| duglakefslistener | object | `{"airflow_url":"http://airflow:airflow@127.0.0.1:8080/api/v1/","branch":"main","commands":{"invoke_airflow_with_diff_config":{"dags":[{"branch_name":"main","dag_id":"dag_test","last_commit_id":null,"repository_id":"bacpac-test"},{"branch_name":"main","dag_id":"annotate_and_index","last_commit_id":null,"repository_id":"bacpac"}]}},"enabled":true,"git_commit_id":null,"port":8001,"service":{"type":"ClusterIP"}}` | DugLakeFSListener config |
 | esdump | object | `{"image":{"repository":"containers.renci.org/helxplatform/esdump","tag":"0.3.0@sha256:765d4eae780c930ca50290a0618b3f0d5c449e89c05c827bb7053dddda676379"},"lakeFSKeyRefName":"search-data-config","lakeFSSecretRefName":"search-data-secret","lakefsBranch":"main","lakefsRepo":"esdump","persistence":{"size":"20Gi","storageClass":""}}` | Settings shared by the esdump export/import jobs |
 | esdump.image | object | `{"repository":"containers.renci.org/helxplatform/esdump","tag":"0.3.0@sha256:765d4eae780c930ca50290a0618b3f0d5c449e89c05c827bb7053dddda676379"}` | one image for both jobs (built from esdump/Dockerfile); it bundles esdump, a stdlib lakeFS client and dug's index_init.py so the jobs fetch nothing at runtime |
 | esdump.lakeFSKeyRefName | string | `"search-data-config"` | configmap with lakefs_host |
